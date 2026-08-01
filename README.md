@@ -1,132 +1,90 @@
 # ai4fly-estimation
 
-Research code for **deterministic Bayesian measurement models for fault-aware
-state estimation on embedded hardware**.
+Deterministic Bayesian measurement models for fault-aware state estimation on
+embedded hardware.
 
-Developed with the Cooperative Human-Robot Intelligence (COHRINT) Lab, Ann and
-H.J. Smead Department of Aerospace Engineering Sciences, University of Colorado
-Boulder.
+Cooperative Human-Robot Intelligence (COHRINT) Lab, Ann and H.J. Smead
+Department of Aerospace Engineering Sciences, University of Colorado Boulder.
 
----
+## Overview
 
-## Problem
+Recursive Bayesian estimators require a measurement model `h(x)` together
+with a measurement noise covariance `R`. In practice `R` is identified
+offline and held fixed, so degradation of a sensor in operation — bias,
+drift, variance inflation, freezing, intermittent dropout — is unmodelled.
+The estimator does not merely lose accuracy; its reported covariance remains
+optimistic, and downstream consumers inherit that optimism.
 
-A state estimator needs a **nonlinear map from state to expected
-measurements**, together with a trustworthy statement of how much to rely on
-that prediction. In practice the second half is a matrix chosen offline by
-hand and then held fixed for the mission.
+This work investigates learned measurement models that predict a
+state-conditioned noise covariance decomposed into aleatoric and epistemic
+components, and evaluates whether that decomposition supports correct fault
+response. The object of study is the measurement map rather than any
+particular filter: the UKF is one consumer, as are the EKF, particle filters,
+and factor-graph smoothers.
 
-That holds while sensors behave as they did during tuning. When one degrades
-in flight — bias, drift, inflated noise, a frozen reading, intermittent
-dropout — the estimator has no mechanism to notice. It is not that faults are
-handled badly; they are outside the model entirely.
+Online noise covariance identification is a mature problem, treated since the
+1970s by innovation-based adaptive estimation. Such methods are necessarily
+reactive — they infer covariance from realised residuals, requiring several
+epochs of degraded behaviour before responding, and do not separate sensor
+degradation from model mismatch. The approach taken here conditions on state
+and recent measurements directly, and distinguishes irreducible sensor noise
+from model ignorance, a separation the innovation sequence does not expose.
 
-The consequential failure is not the estimation error. It is that the
-estimator's *reported confidence* stays high. Control, planning, and
-collision avoidance consume that confidence as though it were earned. An
-estimate that is wrong and says so is recoverable. An estimate that is wrong
-and confident is not.
+Inference is constrained to bounded worst-case execution time. This is the
+binding requirement for real-time scheduling, and it excludes sampling-based
+posteriors, whose cost trades against accuracy through a tunable parameter
+rather than a bound, as well as deep ensembles, which scale both memory and
+computation in the ensemble size. A closed-form Laplace posterior admits a
+fixed operation count, a fixed memory footprint, and no data-dependent
+control flow.
 
-## Scope
+## Methodology
 
-The object of study is the measurement map itself, not any particular filter.
-An unscented Kalman filter is one consumer; an extended Kalman filter,
-particle filter, moving-horizon estimator, or factor-graph smoother all
-require the same thing. Framing the work around the map keeps it portable.
+Three complementary evaluation settings, chosen so that failure modes
+obscured in one are exposed in another:
 
-Three constraints shape the approach:
+1. **Controlled simulation.** A ground vehicle with known kinematics, known
+   sensor geometry, and specified fault models. All quantities are
+   observable, so negative results are attributable. Independent randomised
+   episodes are generated in the volume required for statistical inference.
+2. **Flight data with injected faults.** Logged trajectories supply
+   unmodelled dynamics, vibration, and correlated error that simulation does
+   not reproduce. Ground truth is itself an estimate, which constrains what
+   may be concluded.
+3. **Minimal isolating experiments.** Individual claims are reduced to the
+   smallest system capable of expressing them, admitting no confounders.
 
-**The problem is not new.** Estimating measurement noise online has been
-studied for fifty years, beginning with innovation-based adaptive estimation.
-Classical methods infer noise from the filter's own residuals — necessarily
-reactive, requiring several steps of degraded behaviour before responding,
-and unable to separate a failing sensor from a mismatched model. What differs
-here is the information source: predicting noise from state and recent
-measurements *before* a residual exists, and decomposing that prediction into
-expected noise versus unfamiliarity.
+Reported effects are accompanied by permutation nulls, group-level splits,
+and within-group comparisons.
 
-**Two kinds of uncertainty are not interchangeable.** A sensor can be noisy
-and perfectly healthy — vibration during aggressive manoeuvring. It can be
-precise and completely wrong — frozen at a plausible value. Treating these as
-one quantity yields a system that is confident exactly when it should not be.
+## Contents
 
-**Inference must be schedulable.** The binding requirement for a real-time
-system is not average speed but bounded worst-case execution time. That
-single constraint excludes most of the Bayesian deep-learning toolkit:
-sampling-based methods trade accuracy against latency by a tunable knob
-rather than a bound, and ensembles multiply both memory and computation. A
-closed-form posterior costs one forward pass and one Jacobian evaluation —
-fixed operation count, fixed memory, no sampling, no data-dependent
-branching. The argument is not that it is faster; it is that it has a
-worst-case bound worth certifying against.
-
-## Approach
-
-The problem is attacked from several directions at once, because failure
-modes visible from one angle are invisible from the others.
-
-**A controlled simulation, built from first principles** *(this repository)*.
-A ground robot with a known motion model, known sensor geometry, and exactly
-specified faults. Nothing is unmodelled, so when a method fails the cause is
-unambiguous. It also produces independent randomized runs in the quantity
-statistics requires — conclusions drawn from a handful of trajectories are
-not conclusions.
-
-**Real flight recordings with injected faults.** Real logs carry the
-messiness a simulation cannot invent: vibration, unmodelled dynamics,
-imperfect timing, correlated error. This is the credibility check, and also
-where diagnosis is hardest, because the ground truth is itself an estimate.
-
-**Minimal single-claim demonstrations.** Where one claim must be established
-or refuted, the smallest system that can carry it is built in isolation.
-Deliberately too simple to be interesting alone; valuable because they admit
-no confounders.
-
-## Repository layout
-
-| Path | Contents |
+| Path | Description |
 |---|---|
-| `robot/dynamics.py` | Kinematic model of a four-wheeled differential-drive robot: state propagation, wheel-speed relationships, and the encoder inverse |
-
-Components are added incrementally as they are built and independently
-checked.
-
-### Running
+| `robot/dynamics.py` | Differential-drive kinematics: RK4 state propagation, wheel-speed relations, and the encoder inverse |
 
 ```bash
-python robot/dynamics.py
+python robot/dynamics.py    # property-based verification of the motion model
 ```
 
-Runs property-based self-tests on the motion model — straight-line motion,
-inside/outside wheel-speed reversal, exact recovery of commands from wheel
-speeds, turn-in-place, circle closure, turn radius, and angle wrapping.
-
-## Related work at CU Boulder
-
-This work sits alongside several lines of research in the Smead Aerospace
-department, particularly on filter consistency and on autonomous systems that
-reason about their own limitations.
+## Related work
 
 - Z. Chen, H. Biggie, N. Ahmed, S. Julier, and C. Heckman, "Kalman Filter
   Auto-Tuning With Consistent and Robust Bayesian Optimization," *IEEE
   Transactions on Aerospace and Electronic Systems*, vol. 60, no. 2,
-  pp. 2236–2250, 2024. [doi:10.1109/TAES.2024.3350587](https://doi.org/10.1109/taes.2024.3350587)
-  — uses chi-squared consistency tests as the objective for tuning filter
-  noise parameters. The consistency machinery used here to grade filters is
-  the same statistical apparatus, applied to evaluate a learned noise model
-  rather than to tune a fixed one.
+  pp. 2236–2250, 2024.
+  [doi:10.1109/TAES.2024.3350587](https://doi.org/10.1109/taes.2024.3350587)
 
 - B. W. Israelsen, N. R. Ahmed, M. Aitken, E. W. Frew, D. A. Lawrence, and
   B. M. Argrow, "'A Good Bot Always Knows Its Limitations': Assessing
   Autonomous System Decision-making Competencies through Factorized Machine
   Self-confidence," 2024. [arXiv:2407.19631](https://arxiv.org/abs/2407.19631)
-  — treats self-assessment of competency as a first-class capability of an
-  autonomous system. The uncertainty decomposition studied here is a
-  narrow, estimator-level instance of the same idea: a component reporting
-  where its own knowledge runs out.
+
+- A. Immer, E. Palumbo, A. Marx, and J. Vogt, "Effective Bayesian
+  Heteroscedastic Regression with Deep Neural Networks," *Advances in Neural
+  Information Processing Systems 36*, 2023.
 
 ## Status
 
-Active research. Results are provisional and stated with the conditions under
-which they were observed. Findings that have not survived scrutiny are
-documented as such rather than removed.
+Research code under active development. Results are provisional and reported
+with the conditions under which they were obtained.
