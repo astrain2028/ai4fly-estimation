@@ -62,9 +62,11 @@ and within-group comparisons.
 | Path | Description |
 |---|---|
 | `robot/dynamics.py` | Differential-drive kinematics: RK4 state propagation, wheel-speed relations, and the encoder inverse |
+| `robot/trajectories.py` | Command profiles and rollout: a deterministic reference serpentine, and band-limited randomised episodes for Monte Carlo generation |
 
 ```bash
-python robot/dynamics.py    # property-based verification of the motion model
+python robot/dynamics.py        # property-based verification of the motion model
+python robot/trajectories.py    # trajectory determinism and state-space coverage
 ```
 
 ## Related work
