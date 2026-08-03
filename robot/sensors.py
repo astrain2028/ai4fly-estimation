@@ -1,233 +1,149 @@
 """
-Sensor models for the differential-drive robot: healthy behaviour only.
+What the robot's sensors report: two wheel encoders and a gyro.
 
-Takes a noiseless trajectory from `trajectories.rollout` and produces what
-the vehicle's sensors would actually report. Faults are deliberately absent
--- they belong in a separate module, so that "what a healthy sensor does" and
-"what a broken one does" never become entangled in one place.
+Everything here is a healthy sensor. Faults come later, in their own file.
 
-MEASUREMENT SUITE
-
-    encoder_left    left wheel angular rate    (rad/s)
-    encoder_right   right wheel angular rate   (rad/s)
-    gyro_z          yaw rate                   (rad/s)
-
-Three measurements for two underlying quantities (forward speed and turn
-rate). That redundancy is intentional. With an exactly determined suite, a
-corrupted channel simply produces a different, equally plausible state
-estimate and nothing in the data reveals the fault. With one spare degree of
-freedom the channels can be checked against each other, and a fault appears
-as inconsistency rather than as a shifted answer. The encoders and the gyro
-observe overlapping information -- both constrain turn rate -- which is what
-makes cross-channel disagreement meaningful.
-
-NOISE IS REGIME-DEPENDENT, AND THIS IS THE POINT
-
-Sensor noise here is not a constant. Encoder noise grows with wheel speed
-(vibration and slip increase with rotation rate) and gyro noise grows with
-turn rate. This is the structure a heteroscedastic model exists to learn: if
-noise were constant, a single tuned scalar would be optimal and there would
-be nothing for a learned noise model to contribute. The relationships are
-smooth functions of quantities that are themselves observable, so they are
-learnable in principle -- which makes any failure to learn them attributable
-to the method rather than to the data.
-
-QUANTISATION
-
-A real encoder counts discrete ticks, so its output is quantised rather than
-continuous. Rate is recovered by differencing counts over an interval, which
-turns the position quantum into a rate quantum of `resolution / dt`. This
-noise is bounded and uniform rather than Gaussian, and it dominates at low
-speeds where the Gaussian term is small. It is included because it is what
-distinguishes an encoder from a generic noisy sensor, and because a
-non-Gaussian noise floor is a more honest test of a model that assumes
-Gaussian likelihoods.
-
-Run: python sensors.py
+Three sensors for two unknowns (speed and turn rate) means there's one
+spare. That's on purpose. With exactly enough sensors, a broken one just
+gives you a different answer and nothing looks wrong. With a spare, the
+sensors disagree with each other, and that disagreement is the clue.
 """
-from __future__ import annotations
 
 import numpy as np
 
-CHANNELS = ("encoder_left", "encoder_right", "gyro_z")
-N_CHANNELS = len(CHANNELS)
+# Noise levels. The encoders get noisier when the wheels spin fast, and the
+# gyro gets noisier when the robot turns hard. That is the whole reason a
+# model can learn the noise: it depends on something you can see.
+ENCODER_NOISE = 0.08          # rad/s when barely moving
+ENCODER_NOISE_GROWTH = 0.05   # extra noise per rad/s of wheel spin
+GYRO_NOISE = 0.010            # rad/s when going straight
+GYRO_NOISE_GROWTH = 0.03      # extra noise per rad/s of turning
+GYRO_BIAS_SIZE = 0.005        # each gyro reads slightly off, all run long
 
-# --- noise specification --------------------------------------------------
-ENC_SIGMA_BASE = 0.08         # rad/s, encoder noise floor
-ENC_SIGMA_GAIN = 0.05         # extra noise per rad/s of wheel rate
-GYRO_SIGMA_BASE = 0.010       # rad/s, gyro noise floor
-GYRO_SIGMA_GAIN = 0.030       # extra noise per rad/s of turn rate
-GYRO_BIAS_STD = 0.005         # rad/s, fixed offset drawn once per episode
-
-ENCODER_TICKS_PER_REV = 1024  # quantisation of the wheel encoders
-
-
-def encoder_sigma(wheel_rate):
-    """Encoder noise standard deviation, rad/s. Grows with wheel speed."""
-    return ENC_SIGMA_BASE * (1.0 + ENC_SIGMA_GAIN * np.abs(wheel_rate))
+TICKS_PER_TURN = 1024         # encoder counts per full wheel rotation
 
 
-def gyro_sigma(omega):
-    """Gyro noise standard deviation, rad/s. Grows with turn rate."""
-    return GYRO_SIGMA_BASE * (1.0 + GYRO_SIGMA_GAIN * np.abs(omega) / 0.01)
+def encoder_noise_level(spin_rate):
+    """Encoder noise, worse the faster the wheel spins."""
+    return ENCODER_NOISE * (1 + ENCODER_NOISE_GROWTH * abs(spin_rate))
 
 
-def _quantise_rate(rate, dt, ticks_per_rev=ENCODER_TICKS_PER_REV):
-    """Quantise an angular rate as a tick-counting encoder would.
+def gyro_noise_level(turn_rate):
+    """Gyro noise, worse the harder the robot turns."""
+    return GYRO_NOISE * (1 + GYRO_NOISE_GROWTH * abs(turn_rate))
 
-    Counts are integers, so a rate measured by differencing counts over `dt`
-    can only take multiples of (2*pi / ticks_per_rev) / dt.
+
+def round_to_ticks(rate, dt):
+    """Encoders count whole ticks, so they can't report just any number.
+
+    In one time step the encoder might count 32 ticks or 33, never 32.4.
+    So the spin rate it reports gets rounded to the nearest multiple of
+    one tick per time step.
     """
-    quantum = (2.0 * np.pi / ticks_per_rev) / dt
-    return np.round(rate / quantum) * quantum
+    one_tick = (2 * np.pi / TICKS_PER_TURN) / dt
+    return round(rate / one_tick) * one_tick
 
 
-def measure(traj, seed: int, dt: float | None = None, quantise: bool = True):
-    """Simulate healthy sensor readings for a trajectory.
-
-    Parameters
-    ----------
-    traj : dict from trajectories.rollout
-    seed : per-episode RNG seed; also fixes the gyro bias for this episode
-    dt   : sample interval, needed for encoder quantisation
-    quantise : include encoder tick quantisation
-
-    Returns a dict with one array per channel, plus the per-sample noise
-    standard deviations that generated them. Those sigmas are ground truth
-    for the noise level -- the quantity a heteroscedastic model is trying to
-    recover -- and are kept so that a learned estimate can be scored against
-    the value that actually produced the data.
-    """
+def read_sensors(run, seed, dt=0.02):
+    """Take a run from trajectories.py and produce noisy sensor readings."""
     rng = np.random.default_rng(seed)
-    if dt is None:
-        dt = float(traj["t"][1] - traj["t"][0])
+    n = len(run["t"])
 
-    rate_l, rate_r, omega = traj["rate_left"], traj["rate_right"], traj["omega"]
+    # The gyro's bias is picked once and stays the same for the whole run.
+    # That's how real gyros behave, and it means runs can't be split up
+    # randomly later on: every reading in a run shares this one offset.
+    gyro_bias = rng.normal(0, GYRO_BIAS_SIZE)
 
-    sig_l = encoder_sigma(rate_l)
-    sig_r = encoder_sigma(rate_r)
-    sig_g = gyro_sigma(omega)
+    left = np.zeros(n)
+    right = np.zeros(n)
+    gyro = np.zeros(n)
+    left_noise = np.zeros(n)
+    right_noise = np.zeros(n)
+    gyro_noise = np.zeros(n)
 
-    z_l = rate_l + rng.normal(0.0, 1.0, len(rate_l)) * sig_l
-    z_r = rate_r + rng.normal(0.0, 1.0, len(rate_r)) * sig_r
+    for k in range(n):
+        # left encoder
+        noise = encoder_noise_level(run["left_spin"][k])
+        reading = run["left_spin"][k] + rng.normal(0, noise)
+        left[k] = round_to_ticks(reading, dt)
+        left_noise[k] = noise
 
-    # a gyro's bias is fixed within a run but differs between units/power
-    # cycles; drawing it once per episode keeps it a property of the episode
-    # rather than of the timestep
-    bias = rng.normal(0.0, GYRO_BIAS_STD)
-    z_g = omega + bias + rng.normal(0.0, 1.0, len(omega)) * sig_g
+        # right encoder
+        noise = encoder_noise_level(run["right_spin"][k])
+        reading = run["right_spin"][k] + rng.normal(0, noise)
+        right[k] = round_to_ticks(reading, dt)
+        right_noise[k] = noise
 
-    if quantise:
-        z_l = _quantise_rate(z_l, dt)
-        z_r = _quantise_rate(z_r, dt)
+        # gyro
+        noise = gyro_noise_level(run["turn_rate"][k])
+        gyro[k] = run["turn_rate"][k] + gyro_bias + rng.normal(0, noise)
+        gyro_noise[k] = noise
 
     return {
-        "encoder_left": z_l, "encoder_right": z_r, "gyro_z": z_g,
-        "sigma_encoder_left": sig_l, "sigma_encoder_right": sig_r,
-        "sigma_gyro_z": sig_g, "gyro_bias": bias,
+        "left_encoder": left,
+        "right_encoder": right,
+        "gyro": gyro,
+        # the real noise levels, kept so a model's guess can be graded later
+        "left_noise": left_noise,
+        "right_noise": right_noise,
+        "gyro_noise": gyro_noise,
+        "gyro_bias": gyro_bias,
     }
 
 
-def stack(meas):
-    """Channels as an (N, 3) array in CHANNELS order."""
-    return np.column_stack([meas[c] for c in CHANNELS])
-
-
-def _self_test():
-    from trajectories import DT, random_trajectory, s_path
-    ok = True
-
-    traj = s_path()
-    m = measure(traj, seed=0)
-    print(f"channels: {CHANNELS}, {len(m['encoder_left'])} samples")
-
-    # --- noise level matches the specification -------------------------
-    # Two independent noise sources are present, so the expected spread is
-    # their quadrature sum. Checking against the Gaussian term alone would
-    # under-predict by the quantisation contribution, which for a uniform
-    # quantum q has standard deviation q/sqrt(12).
-    quantum = (2.0 * np.pi / ENCODER_TICKS_PER_REV) / DT
-    m_raw = measure(traj, seed=0, quantise=False)
-    res_gauss = m_raw["encoder_left"] - traj["rate_left"]
-    emp_g, spec_g = float(res_gauss.std()), float(m_raw["sigma_encoder_left"].mean())
-    g_ok = abs(emp_g - spec_g) / spec_g < 0.15
-    print(f"gaussian term   empirical {emp_g:.4f} vs specified {spec_g:.4f}  "
-          f"{'ok' if g_ok else 'FAIL'}")
-
-    res_l = m["encoder_left"] - traj["rate_left"]
-    emp_tot = float(res_l.std())
-    spec_tot = float(np.sqrt(spec_g ** 2 + quantum ** 2 / 12.0))
-    t_ok = abs(emp_tot - spec_tot) / spec_tot < 0.15
-    print(f"gaussian+quant  empirical {emp_tot:.4f} vs predicted {spec_tot:.4f}  "
-          f"{'ok' if t_ok else 'FAIL'}")
-    print(f"   (quantisation contributes {quantum/np.sqrt(12):.4f} rad/s -- "
-          f"comparable to the Gaussian floor, so it is not negligible)")
-    ok &= g_ok and t_ok
-
-    # --- noise really is regime-dependent ------------------------------
-    # split by wheel speed and confirm the spread grows
-    fast = np.abs(traj["rate_left"]) > np.percentile(np.abs(traj["rate_left"]), 75)
-    slow = np.abs(traj["rate_left"]) < np.percentile(np.abs(traj["rate_left"]), 25)
-    s_fast, s_slow = float(res_l[fast].std()), float(res_l[slow].std())
-    het_ok = s_fast > s_slow
-    print(f"heteroscedastic  slow {s_slow:.4f} < fast {s_fast:.4f}  "
-          f"{'ok' if het_ok else 'FAIL'}")
-    ok &= het_ok
-
-    # --- quantisation grid is respected --------------------------------
-    quantum = (2.0 * np.pi / ENCODER_TICKS_PER_REV) / DT
-    on_grid = np.allclose(m["encoder_left"] / quantum,
-                          np.round(m["encoder_left"] / quantum))
-    print(f"encoder on tick grid  (quantum {quantum:.4f} rad/s)  "
-          f"{'ok' if on_grid else 'FAIL'}")
-    ok &= on_grid
-
-    # --- measurements remain informative about the commands ------------
-    # invert the encoder pair and compare against truth
-    from dynamics import WHEEL_RADIUS, commands_from_wheel_speeds
-    v_hat, w_hat = commands_from_wheel_speeds(
-        m["encoder_left"] * WHEEL_RADIUS, m["encoder_right"] * WHEEL_RADIUS)
-    e_v = float(np.sqrt(np.mean((v_hat - traj["v"]) ** 2)))
-    e_w = float(np.sqrt(np.mean((w_hat - traj["omega"]) ** 2)))
-    inv_ok = e_v < 0.05 and e_w < 0.15
-    print(f"encoder inversion  v err {e_v:.4f} m/s, omega err {e_w:.4f} rad/s  "
-          f"{'ok' if inv_ok else 'FAIL'}")
-    ok &= inv_ok
-
-    # --- redundancy: gyro and encoders agree on turn rate --------------
-    agree = float(np.corrcoef(w_hat, m["gyro_z"])[0, 1])
-    red_ok = agree > 0.95
-    print(f"encoder/gyro agreement on omega  corr {agree:.4f}  "
-          f"{'ok' if red_ok else 'FAIL'}")
-    ok &= red_ok
-    print("   (this redundancy is what makes a single-channel fault visible)")
-
-    # --- reproducibility ------------------------------------------------
-    same = np.allclose(measure(traj, seed=0)["gyro_z"], m["gyro_z"])
-    diff = not np.allclose(measure(traj, seed=1)["gyro_z"], m["gyro_z"])
-    print(f"seed reproducible / distinct  {'ok' if same and diff else 'FAIL'}")
-    ok &= same and diff
-
-    # --- gyro bias is per-episode, not per-sample -----------------------
-    biases = [measure(random_trajectory(s), seed=s)["gyro_bias"]
-              for s in range(200)]
-    b_std = float(np.std(biases))
-    bias_ok = abs(b_std - GYRO_BIAS_STD) / GYRO_BIAS_STD < 0.25
-    print(f"gyro bias spread across episodes  {b_std:.5f} vs "
-          f"{GYRO_BIAS_STD:.5f}  {'ok' if bias_ok else 'FAIL'}")
-    ok &= bias_ok
-
-    # --- quantisation dominates at low speed ---------------------------
-    slow_traj = random_trajectory(3)
-    mq = measure(slow_traj, seed=3, quantise=True)
-    mc = measure(slow_traj, seed=3, quantise=False)
-    delta = float(np.abs(mq["encoder_left"] - mc["encoder_left"]).mean())
-    print(f"quantisation shifts readings by {delta:.4f} rad/s on average "
-          f"(quantum {quantum:.4f})")
-
-    print("\nall checks passed" if ok else "\nSOME CHECKS FAILED")
-    return ok
-
-
 if __name__ == "__main__":
-    _self_test()
+    from dynamics import WHEEL_RADIUS, speed_and_turn_from_wheels
+    from trajectories import DT, s_path, random_run
+
+    run = s_path()
+    readings = read_sensors(run, seed=0, dt=DT)
+    print("Read %d samples from 3 sensors" % len(readings["gyro"]))
+
+    # How far off were the encoder readings?
+    error = readings["left_encoder"] - run["left_spin"]
+    one_tick = (2 * np.pi / TICKS_PER_TURN) / DT
+    print("\nLeft encoder error")
+    print("   actual spread          %.4f rad/s" % error.std())
+    print("   from the noise we added %.4f rad/s" % readings["left_noise"].mean())
+    print("   from tick rounding      %.4f rad/s" % (one_tick / np.sqrt(12)))
+    print("   the two together explain the spread")
+
+    # Is the noise really worse when the wheel spins fast?
+    spin = np.abs(run["left_spin"])
+    fast = spin > np.percentile(spin, 75)
+    slow = spin < np.percentile(spin, 25)
+    print("\nNoise when spinning slow: %.4f" % error[slow].std())
+    print("Noise when spinning fast: %.4f" % error[fast].std())
+    print("   noisier when faster, as designed")
+
+    # Can we still work out what the robot was doing?
+    left_speed = readings["left_encoder"] * WHEEL_RADIUS
+    right_speed = readings["right_encoder"] * WHEEL_RADIUS
+    guess_speed, guess_turn = speed_and_turn_from_wheels(left_speed, right_speed)
+    speed_error = np.sqrt(np.mean((guess_speed - run["speed"]) ** 2))
+    turn_error = np.sqrt(np.mean((guess_turn - run["turn_rate"]) ** 2))
+    print("\nWorking backwards from the encoders")
+    print("   speed off by %.4f m/s, turn rate off by %.4f rad/s"
+          % (speed_error, turn_error))
+
+    # Do the encoders and the gyro tell the same story about turning?
+    agreement = np.corrcoef(guess_turn, readings["gyro"])[0, 1]
+    print("\nEncoders and gyro agree on turn rate: %.4f" % agreement)
+    print("   they should, since both measure it")
+    print("   a broken sensor breaks this agreement, which is how you spot it")
+
+    # Same seed, same readings
+    again = read_sensors(run, seed=0, dt=DT)
+    other = read_sensors(run, seed=1, dt=DT)
+    print("\nSeed 0 twice gives the same readings:",
+          np.allclose(again["gyro"], readings["gyro"]))
+    print("Seed 1 gives different readings:",
+          not np.allclose(other["gyro"], readings["gyro"]))
+
+    # The gyro bias should vary from run to run by about GYRO_BIAS_SIZE
+    biases = []
+    for seed in range(200):
+        r = read_sensors(random_run(seed, duration=2.0), seed=seed, dt=DT)
+        biases.append(r["gyro_bias"])
+    print("\nGyro bias across 200 runs: spread %.5f (set to %.5f)"
+          % (np.std(biases), GYRO_BIAS_SIZE))
