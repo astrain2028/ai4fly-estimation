@@ -63,10 +63,12 @@ and within-group comparisons.
 |---|---|
 | `robot/dynamics.py` | Differential-drive kinematics: RK4 state propagation, wheel-speed relations, and the encoder inverse |
 | `robot/trajectories.py` | Command profiles and rollout: a deterministic reference serpentine, and band-limited randomised episodes for Monte Carlo generation |
+| `robot/sensors.py` | Healthy sensor models: quantised wheel encoders and a biased gyro, with state-dependent noise |
 
 ```bash
 python robot/dynamics.py        # property-based verification of the motion model
 python robot/trajectories.py    # trajectory determinism and state-space coverage
+python robot/sensors.py         # noise calibration, quantisation, channel redundancy
 ```
 
 ## Related work
