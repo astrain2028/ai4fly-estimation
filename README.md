@@ -179,10 +179,6 @@ indicate an unmodelled noise source, while innovations smaller than predicted
 indicate a measurement that has stopped varying — and the two imply opposite
 corrective actions.
 
-Alongside estimation accuracy, fault detection rate and false positive rate
-are reported. Effects are accompanied by permutation nulls, group-level
-splits, and within-group comparisons.
-
 Validation proceeds from controlled simulation, where all quantities are
 observable and negative results are attributable, toward flight data and
 ultimately hardware, with faults introduced deliberately in a controlled
