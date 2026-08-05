@@ -210,6 +210,7 @@ empirical.
 | `robot/dynamics.py` | Differential-drive kinematics: RK4 state propagation, wheel-speed relations, and the encoder inverse |
 | `robot/trajectories.py` | Command profiles and rollout: a deterministic reference serpentine, and band-limited randomised episodes for Monte Carlo generation |
 | `robot/sensors.py` | Healthy sensor models: quantised wheel encoders and a biased gyro, with state-dependent noise |
+| `robot/train_baseline.py` | Point-prediction baseline: state to sensor readings, mean squared error, no uncertainty output |
 | `data/robot_data.csv` | 100 runs of 20 s at 50 Hz (100,000 rows): state, true wheel rates, sensor readings, and the noise level that produced each reading |
 | `data/robot_data_sample.csv` | The first two runs, for inspection without loading the full file |
 
@@ -228,7 +229,16 @@ meaningful.
 python robot/dynamics.py        # property-based verification of the motion model
 python robot/trajectories.py    # trajectory determinism and state-space coverage
 python robot/sensors.py         # noise calibration, quantisation, channel redundancy
+python robot/train_baseline.py  # point-prediction baseline
 ```
+
+The baseline reaches the noise floor on held-out runs — 0.153 against a
+limit of 0.149 for the encoders, 0.0123 against 0.0117 for the gyro — where
+the limit combines sensor noise, encoder tick quantisation, and, for the
+gyro, the per-run bias that is unknowable for a run not seen in training.
+Its residual error tracks wheel speed, rising from 0.110 to 0.130 across the
+range, while the model reports a single value throughout. That gap is what a
+state-conditioned covariance is for.
 
 ## References
 
