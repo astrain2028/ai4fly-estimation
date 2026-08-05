@@ -210,6 +210,14 @@ empirical.
 | `robot/dynamics.py` | Differential-drive kinematics: RK4 state propagation, wheel-speed relations, and the encoder inverse |
 | `robot/trajectories.py` | Command profiles and rollout: a deterministic reference serpentine, and band-limited randomised episodes for Monte Carlo generation |
 | `robot/sensors.py` | Healthy sensor models: quantised wheel encoders and a biased gyro, with state-dependent noise |
+| `data/robot_data.csv` | 100 runs of 20 s at 50 Hz (100,000 rows): state, true wheel rates, sensor readings, and the noise level that produced each reading |
+| `data/robot_data_sample.csv` | The first two runs, for inspection without loading the full file |
+
+Each row carries a `run` column. Splits must be made by run rather than by
+row: the gyro bias is drawn once per run and shared by every sample in it, so
+a row-level split leaks it across the divide.
+
+![dataset](data/dataset_check.png)
 
 A ground robot serves as the controlled setting: known kinematics, known
 sensor geometry, and a redundant suite — three channels constraining two
