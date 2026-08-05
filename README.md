@@ -136,7 +136,7 @@ a live one: if innovation likelihood alone discriminates fault type well,
 part of the motivation for decomposing predictive uncertainty weakens.
 
 The taxonomy also carries a caution. Model-learning approaches, Lee et al.
-note, tend to replace explicitly structured components with learned
+[6], tend to replace explicitly structured components with learned
 parameterisations and become harder to interpret in state-space terms. That
 applies here, and the mitigation is to keep the learned object recognisable:
 a measurement map and a covariance, conditioned on a health variable with a
