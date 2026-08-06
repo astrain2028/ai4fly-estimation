@@ -114,6 +114,35 @@ unable to express noise that varies with operating condition or with sensor
 health. The approach here targets both components, at the cost of having to
 construct the epistemic term rather than inheriting it.
 
+Lee et al. [6] give a taxonomy of hybrid filters worth positioning against:
+state-correction methods, which learn a residual on the predicted state or
+innovation; model-learning methods, which parameterise components of the
+state-space model with a network; and gain-learning methods, which replace
+the analytic Kalman gain outright. The work here is model-learning applied to
+the measurement side — the map and its covariance are learned, while the
+prediction and update recursions remain analytic.
+
+Their own method sits on the opposite side of the same filter, learning
+structured corrections to the dynamics and the process noise, and it differs
+in two ways that bear directly on the choices made here. It is trained from
+measurement data alone, requiring no ground-truth states, where conditioning
+on health requires labelled fault data — which is one of the two barriers
+this project has to work around rather than solve. And it obtains model
+classification from the innovation likelihood under generalised Bayesian
+inference, which is an alternative route to identifying *which* fault is
+present that needs neither health in the state nor an uncertainty
+decomposition. Whether that route is sufficient is an open question here, and
+a live one: if innovation likelihood alone discriminates fault type well,
+part of the motivation for decomposing predictive uncertainty weakens.
+
+The taxonomy also carries a caution. Model-learning approaches, Lee et al.
+note, tend to replace explicitly structured components with learned
+parameterisations and become harder to interpret in state-space terms. That
+applies here, and the mitigation is to keep the learned object recognisable:
+a measurement map and a covariance, conditioned on a health variable with a
+physical meaning, rather than an unconstrained network mapping states to
+corrections.
+
 ### Why the map must predict a covariance, not only a mean
 
 In the formulation above, health enters through `h`, which is the conditional
@@ -131,7 +160,7 @@ Training such a model is not straightforward. Under the usual mean-variance
 parameterisation the gradient on the mean is scaled by the inverse predicted
 variance, so wherever variance is large the mean stops being fitted, and the
 resulting residual justifies a larger variance still — a self-reinforcing
-degenerate solution documented by Seitzer et al. [6]. Immer et al. [7] avoid
+degenerate solution documented by Seitzer et al. [7]. Immer et al. [8] avoid
 it by regressing the Gaussian natural parameters, under which the objective
 is concave for a linear output layer, and pair this with a Laplace
 approximation that keeps the weight posterior closed-form rather than
@@ -157,18 +186,18 @@ sensor.
 The same signal bears on fault coverage. A health-conditioned map learns the
 degradation modes present in its training data; a mode outside that set is
 unrepresented, and the model still returns a health estimate with nothing to
-indicate it is extrapolating. Ovadia et al. [8] show this is the expected
+indicate it is extrapolating. Ovadia et al. [9] show this is the expected
 behaviour rather than a defect of any particular model: predictive
 uncertainty degrades under distributional shift, and calibration holding
 in-distribution fails under even mild shift.
 
 Whether a full Bayesian posterior is warranted, or whether a simpler
-distributional score in the manner of Hendrycks and Gimpel [9] suffices, is
+distributional score in the manner of Hendrycks and Gimpel [10] suffices, is
 open here and consequential for deployment, since the two differ by roughly
 an order of magnitude in inference cost.
 
 Reporting where a learned component's knowledge runs out is a narrow instance
-of a broader capability: Israelsen et al. [12] treat competency
+of a broader capability: Israelsen et al. [13] treat competency
 self-assessment as a first-class function of an autonomous system, rather
 than as diagnostics attached after the fact.
 
@@ -183,7 +212,7 @@ data, so only the epistemic half is trainable on healthy operation alone.
 
 ## Evaluation
 
-Filter consistency is the primary criterion, following Chen et al. [10], [11]:
+Filter consistency is the primary criterion, following Chen et al. [11], [12]:
 normalised innovation and estimation-error squared statistics tested against
 chi-square bounds. That work uses consistency as an objective for tuning a
 fixed noise covariance; here it evaluates a learned, health-conditioned one.
@@ -294,39 +323,43 @@ Physics-Informed Neural Networks with Adaptive UKF for Dynamic Systems,"
 *Electronics*, vol. 13, no. 11, 2208, 2024.
 [doi:10.3390/electronics13112208](https://doi.org/10.3390/electronics13112208)
 
+[6] J. Lee, N. R. Ahmed, and R. Russell, "Hybrid Adaptive Kalman Filtering
+for Data-Efficient Joint Tracking and Classification," 2026.
+[arXiv:2606.02767](https://arxiv.org/abs/2606.02767)
+
 **Heteroscedastic regression and predictive uncertainty**
 
-[6] M. Seitzer, A. Tavakoli, D. Antic, and G. Martius, "On the Pitfalls of
+[7] M. Seitzer, A. Tavakoli, D. Antic, and G. Martius, "On the Pitfalls of
 Heteroscedastic Uncertainty Estimation with Probabilistic Neural Networks,"
 *International Conference on Learning Representations*, 2022.
 [arXiv:2203.09168](https://arxiv.org/abs/2203.09168)
 
-[7] A. Immer, E. Palumbo, A. Marx, and J. Vogt, "Effective Bayesian
+[8] A. Immer, E. Palumbo, A. Marx, and J. Vogt, "Effective Bayesian
 Heteroscedastic Regression with Deep Neural Networks," *Advances in Neural
 Information Processing Systems 36*, 2023.
 
-[8] Y. Ovadia et al., "Can You Trust Your Model's Uncertainty? Evaluating
+[9] Y. Ovadia et al., "Can You Trust Your Model's Uncertainty? Evaluating
 Predictive Uncertainty Under Dataset Shift," *Advances in Neural Information
 Processing Systems 32*, 2019.
 
-[9] D. Hendrycks and K. Gimpel, "A Baseline for Detecting Misclassified and
+[10] D. Hendrycks and K. Gimpel, "A Baseline for Detecting Misclassified and
 Out-of-Distribution Examples in Neural Networks," *International Conference
 on Learning Representations*, 2017.
 [arXiv:1610.02136](https://arxiv.org/abs/1610.02136)
 
 **Filter consistency and self-assessment**
 
-[10] Z. Chen, C. Heckman, S. Julier, and N. Ahmed, "Weak in the NEES?:
+[11] Z. Chen, C. Heckman, S. Julier, and N. Ahmed, "Weak in the NEES?:
 Auto-tuning Kalman Filters with Bayesian Optimization," 2018.
 [arXiv:1807.08855](https://arxiv.org/abs/1807.08855)
 
-[11] Z. Chen, H. Biggie, N. Ahmed, S. Julier, and C. Heckman, "Kalman Filter
+[12] Z. Chen, H. Biggie, N. Ahmed, S. Julier, and C. Heckman, "Kalman Filter
 Auto-Tuning With Consistent and Robust Bayesian Optimization," *IEEE
 Transactions on Aerospace and Electronic Systems*, vol. 60, no. 2,
 pp. 2236–2250, 2024.
 [doi:10.1109/TAES.2024.3350587](https://doi.org/10.1109/taes.2024.3350587)
 
-[12] B. W. Israelsen, N. R. Ahmed, M. Aitken, E. W. Frew, D. A. Lawrence, and
+[13] B. W. Israelsen, N. R. Ahmed, M. Aitken, E. W. Frew, D. A. Lawrence, and
 B. M. Argrow, "'A Good Bot Always Knows Its Limitations': Assessing Autonomous
 System Decision-making Competencies through Factorized Machine
 Self-confidence," 2024. [arXiv:2407.19631](https://arxiv.org/abs/2407.19631)
