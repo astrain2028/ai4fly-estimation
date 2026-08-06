@@ -224,6 +224,8 @@ empirical.
 | `robot/trajectories.py` | Command profiles and rollout: a deterministic reference serpentine, and band-limited randomised episodes for Monte Carlo generation |
 | `robot/sensors.py` | Healthy sensor models: quantised wheel encoders and a biased gyro, with state-dependent noise |
 | `robot/train_baseline.py` | Point-prediction baseline: state to sensor readings, mean squared error, no uncertainty output |
+| `robot/ukf.py` | Unscented Kalman filter over `[x, y, heading, speed, turn_rate]`, returning innovations and their covariances, and accepting a per-step measurement covariance |
+| `robot/learned_measurement.py` | Substitutes the trained network for the hand-written measurement model |
 | `data/robot_data.csv` | 100 runs of 20 s at 50 Hz (100,000 rows): state, true wheel rates, sensor readings, and the noise level that produced each reading |
 | `data/robot_data_sample.csv` | The first two runs, for inspection without loading the full file |
 
@@ -243,7 +245,18 @@ python robot/dynamics.py        # property-based verification of the motion mode
 python robot/trajectories.py    # trajectory determinism and state-space coverage
 python robot/sensors.py         # noise calibration, quantisation, channel redundancy
 python robot/train_baseline.py  # point-prediction baseline
+python robot/ukf.py             # filter consistency on a simulated run
+python robot/learned_measurement.py   # hand-written vs learned measurement model
 ```
+
+The filter is calibrated with a fixed covariance before any learned noise
+model is introduced: mean NIS 3.07 against a target of 3 across twenty runs,
+with 94% of steps inside the chi-square bounds. Fusing the gyro with the
+encoder difference recovers turn rate to 0.0083 rad/s, against 0.0477 rad/s
+from differencing the encoders alone. Substituting the learned measurement
+model for the analytic one leaves consistency unchanged and costs roughly
+10% on turn-rate accuracy — the mean is learned, while trust remains a fixed
+matrix chosen by hand.
 
 The baseline reaches the noise floor on held-out runs — 0.153 against a
 limit of 0.149 for the encoders, 0.0123 against 0.0117 for the gyro — where

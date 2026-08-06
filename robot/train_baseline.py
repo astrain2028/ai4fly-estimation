@@ -165,8 +165,15 @@ def main():
     print("  These should be small: the network should recover the clean")
     print("  relationship and leave the noise behind.")
 
-    torch.save(model.state_dict(), "baseline_model.pt")
-    print("\nSaved baseline_model.pt")
+    # Save the scaling numbers alongside the weights. Without them the
+    # network's output is in standardised units and cannot be turned back
+    # into rad/s, so the weights alone are not enough to use the model.
+    torch.save({"weights": model.state_dict(),
+                "x_mean": x_mean, "x_std": x_std,
+                "y_mean": y_mean, "y_std": y_std,
+                "inputs": INPUTS, "outputs": OUTPUTS},
+               "baseline_model.pt")
+    print("\nSaved baseline_model.pt (weights and scaling)")
 
 
 if __name__ == "__main__":
