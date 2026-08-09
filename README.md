@@ -284,7 +284,7 @@ Substituting the learned measurement model for the analytic one leaves
 consistency unchanged and costs roughly 10% on turn-rate accuracy — the mean
 is learned, while trust remains a fixed matrix chosen by hand.
 
-Consistency is assessed on both moments, following Chen et al. [13], who
+Consistency is assessed on both moments, following Chen et al. [12], who
 show that matching the mean alone is insufficient: a filter can be mistuned
 and still produce exactly the expected average NIS, with only the variance
 revealing it. For a correctly tuned filter with `n` measurements, NIS has
