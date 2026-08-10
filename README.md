@@ -278,14 +278,34 @@ python robot/ukf.py             # filter consistency on a simulated run
 python robot/learned_measurement.py   # hand-written vs learned measurement model
 ```
 
-The filter is calibrated with a fixed covariance before any learned noise
-model is introduced: mean NIS 3.07 against a target of 3 across twenty runs,
-with 94% of steps inside the chi-square bounds. Fusing the gyro with the
-encoder difference recovers turn rate to 0.0083 rad/s, against 0.0477 rad/s
-from differencing the encoders alone. Substituting the learned measurement
-model for the analytic one leaves consistency unchanged and costs roughly
-10% on turn-rate accuracy — the mean is learned, while trust remains a fixed
-matrix chosen by hand.
+Fusing the gyro with the encoder difference recovers turn rate to 0.0083
+rad/s, against 0.0477 rad/s from differencing the encoders alone.
+Substituting the learned measurement model for the analytic one leaves
+consistency unchanged and costs roughly 10% on turn-rate accuracy — the mean
+is learned, while trust remains a fixed matrix chosen by hand.
+
+Consistency is assessed on both moments, following Chen et al. [13], who
+show that matching the mean alone is insufficient: a filter can be mistuned
+and still produce exactly the expected average NIS, with only the variance
+revealing it. For a correctly tuned filter with `n` measurements, NIS has
+mean `n` and variance `2n`. Measured over thirty runs with a fixed
+covariance:
+
+| | measured | target |
+|---|---|---|
+| mean NIS | 3.17 | 3.0 |
+| variance of NIS | 7.20 | 6.0 |
+
+The mean is close; the variance is about 20% high, and the cause is not yet
+established. Two candidate explanations have been tested and rejected.
+Encoder tick quantisation is not responsible: disabling it and matching the
+covariance to the remaining Gaussian noise leaves the variance at 7.46.
+Correlation between successive time steps is weak (0.09 to 0.14), and
+averaging across runs per time step rather than pooling over time moves the
+figure only to 6.98. Whether the process noise is mis-specified, and how
+much the unmodelled per-run gyro bias contributes, remain open. The
+discrepancy is recorded here rather than omitted, since any later comparison
+between fixed and learned covariances inherits it.
 
 The baseline reaches the noise floor on held-out runs — 0.153 against a
 limit of 0.149 for the encoders, 0.0123 against 0.0117 for the gyro — where

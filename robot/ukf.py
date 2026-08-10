@@ -172,16 +172,50 @@ class UKF:
 
 
 def nis(innovations, innovation_covs):
-    """Normalised innovation squared, one number per time step.
-
-    If the filter's idea of its own uncertainty is right, these should
-    average about the number of sensors.
-    """
+    """Normalised innovation squared, one number per time step."""
     out = np.zeros(len(innovations))
     for k in range(len(innovations)):
         out[k] = innovations[k] @ np.linalg.solve(innovation_covs[k],
                                                   innovations[k])
     return out
+
+
+def consistency(values, n_sensors):
+    """Check both things a correctly tuned filter has to get right.
+
+    A tuned filter's NIS values follow a chi-square distribution with one
+    degree of freedom per sensor. That fixes two numbers, not one:
+
+        average  should be n_sensors
+        spread   should be 2 * n_sensors
+
+    Checking only the average is not enough. Chen et al. show a filter that
+    is tuned wrongly but still has exactly the right average NIS, with the
+    spread giving it away. So both are reported here, along with their
+    ratio, which should be 2.
+
+    A spread that is too large means either the filter's own S does not
+    match how much the innovations really vary, or the innovations are not
+    centred on zero -- something is biasing them.
+    """
+    values = np.asarray(values)
+    return {
+        "mean": float(values.mean()),
+        "mean_target": float(n_sensors),
+        "variance": float(values.var()),
+        "variance_target": float(2 * n_sensors),
+        "ratio": float(values.var() / values.mean()),
+    }
+
+
+def print_consistency(values, n_sensors, label=""):
+    c = consistency(values, n_sensors)
+    print("  %-18s %8s %8s" % (label, "measured", "target"))
+    print("  %-18s %8.3f %8.1f" % ("average NIS", c["mean"], c["mean_target"]))
+    print("  %-18s %8.3f %8.1f" % ("spread of NIS", c["variance"],
+                                   c["variance_target"]))
+    print("  %-18s %8.3f %8.1f" % ("spread / average", c["ratio"], 2.0))
+    return c
 
 
 if __name__ == "__main__":
@@ -237,10 +271,25 @@ if __name__ == "__main__":
     print("   for comparison, turn rate straight off the encoders: %.4f"
           % np.sqrt(np.mean((raw_turn - run["turn_rate"]) ** 2)))
 
+    print("\nCheck 3: is the filter honest about its own uncertainty?")
     values = nis(innovations, S)
-    print("\n   average NIS %.2f  (should be near 3, the number of sensors)"
-          % values.mean())
-    print("   Too low means the filter is under-confident: it expected more")
+    print_consistency(values, n_sensors=3)
+    print()
+    print("   Average too low means under-confident: it expected more")
     print("   surprise than it got, usually because Q or R is too big.")
-    print("   Too high means over-confident, which is the dangerous side --")
+    print("   Too high means over-confident, the dangerous side, since")
     print("   everything downstream believes an estimate it should not.")
+    print()
+    print("   The spread matters as much as the average. A filter can hit")
+    print("   the right average while being tuned wrongly, so both are")
+    print("   reported.")
+    print()
+    print("   Ours runs about 20% wide, and the reason is not yet known.")
+    print("   Two explanations have been tested and ruled out:")
+    print("     - encoder tick rounding: turning it off and matching R to")
+    print("       the remaining noise leaves the spread at 7.46, no better")
+    print("     - correlation between time steps: measured at 0.09 to 0.14,")
+    print("       and averaging across runs instead of pooling over time")
+    print("       only moves it from 7.20 to 6.98")
+    print("   Still open: whether Q is mis-specified, and how much the")
+    print("   unmodelled per-run gyro bias contributes.")
