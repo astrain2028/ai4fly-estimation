@@ -11,13 +11,22 @@ numbers are saved with the weights -- the weights on their own are not
 enough to use the model.
 """
 
+import sys
+from pathlib import Path
+
+# The simulation lives in robot/. Find it relative to THIS file, so the
+# script works no matter which directory you run it from.
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "robot"))
+DATA = ROOT / "data" / "robot_data.csv"
+
 import numpy as np
 import torch
 
-from train_baseline import make_model
+from train import make_model
 
 
-def load_measurement_model(path="baseline_model.pt"):
+def load_measurement_model(path=str(Path(__file__).parent / "baseline_model.pt")):
     """Load the trained network and return a function the UKF can use.
 
     The returned function takes an array of states, shape (n, 5), and gives

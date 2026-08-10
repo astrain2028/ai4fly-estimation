@@ -12,6 +12,15 @@ are fed in anyway, partly because that is the state the filter will carry,
 and partly as a check: the network should learn to ignore them.
 """
 
+import sys
+from pathlib import Path
+
+# The simulation lives in robot/. Find it relative to THIS file, so the
+# script works no matter which directory you run it from.
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "robot"))
+DATA = ROOT / "data" / "robot_data.csv"
+
 import numpy as np
 import pandas as pd
 import torch
@@ -26,7 +35,7 @@ LEARNING_RATE = 0.001
 HIDDEN = 64
 
 
-def load_and_split(path="../data/robot_data.csv", val_fraction=0.2, seed=0):
+def load_and_split(path=DATA, val_fraction=0.2, seed=0):
     """Load the data and hold out whole runs for validation.
 
     Splitting by run matters. Every row in a run shares that run's gyro
@@ -172,7 +181,7 @@ def main():
                 "x_mean": x_mean, "x_std": x_std,
                 "y_mean": y_mean, "y_std": y_std,
                 "inputs": INPUTS, "outputs": OUTPUTS},
-               "baseline_model.pt")
+               str(Path(__file__).parent / "baseline_model.pt"))
     print("\nSaved baseline_model.pt (weights and scaling)")
 
 
