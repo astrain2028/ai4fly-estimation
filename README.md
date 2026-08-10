@@ -291,21 +291,49 @@ revealing it. For a correctly tuned filter with `n` measurements, NIS has
 mean `n` and variance `2n`. Measured over thirty runs with a fixed
 covariance:
 
-| | measured | target |
-|---|---|---|
-| mean NIS | 3.17 | 3.0 |
-| variance of NIS | 7.20 | 6.0 |
+An initial covariance taken from the sensors' own noise figures gave a mean
+NIS of 3.17 against a target of 3 — apparently correct — while the variance
+was 7.20 against 6. Whitening the innovations located the cause: their
+kurtosis was 2.96 on every channel, so the Gaussian assumption held, but
+their variances were 1.28, 1.18, and 0.70 where all three should be 1. Both
+encoders were over-trusted and the gyro under-trusted.
 
-The mean is close; the variance is about 20% high, and the cause is not yet
-established. Two candidate explanations have been tested and rejected.
-Encoder tick quantisation is not responsible: disabling it and matching the
-covariance to the remaining Gaussian noise leaves the variance at 7.46.
-Correlation between successive time steps is weak (0.09 to 0.14), and
-averaging across runs per time step rather than pooling over time moves the
-figure only to 6.98. Whether the process noise is mis-specified, and how
-much the unmodelled per-run gyro bias contributes, remain open. The
-discrepancy is recorded here rather than omitted, since any later comparison
-between fixed and learned covariances inherits it.
+That combination is invisible in the mean and plain in the variance. The
+mean is a sum, in which the errors cancel (1.28 + 1.18 + 0.70 = 3.17); the
+variance is quadratic, in which they compound. This is precisely the failure
+mode Chen et al. describe, encountered independently here.
+
+Scaling each channel by its own whitened variance, iterated three times,
+gives encoder standard deviations of 0.1805 and 0.1708 and a gyro figure of
+0.0080, against starting values of 0.15 and 0.011. Note that the encoders
+require *more* than their measured sensor noise, since the innovation
+covariance also carries state uncertainty, and since encoder noise genuinely
+varies with wheel speed across 0.133 to 0.159 — no single constant fits both
+ends. That is an argument for a state-conditioned covariance which owes
+nothing to faults, and holds for an entirely healthy vehicle.
+
+With the corrected covariance, measured over twenty runs:
+
+| | average | median | variance | target |
+|---|---|---|---|---|
+| NIS, 3 measurements | 2.88 | 2.30 | 5.55 | 3 and 6 |
+| NEES, speed and turn rate | 3.65 | 2.53 | 13.44 | 2 and 4 |
+| NEES, all five states | 22.49 | 5.81 | 3614.9 | 5 and 10 |
+
+NIS passes and NEES does not, which is the reason for computing both.
+Innovations involve only quantities a sensor reports, so NIS is structurally
+blind to any state nothing observes — here position and heading, which are
+free to drift while every innovation remains well behaved. NEES requires the
+true state and is therefore a simulation-only diagnostic, but that is what
+simulation is for.
+
+NEES is reported over subsets as well as the full state. The full-state
+figure is dominated by the unobserved components and so mostly grades the
+process noise; the speed-and-turn-rate subset is what speaks to the
+measurement model. Median and mean are both given because the distribution
+has a long tail: a full-state median of 5.8 against a mean of 22.5 means
+most runs are acceptable and a few are not, and either statistic alone would
+misrepresent that.
 
 The baseline reaches the noise floor on held-out runs — 0.153 against a
 limit of 0.149 for the encoders, 0.0123 against 0.0117 for the gyro — where

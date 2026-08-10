@@ -180,41 +180,77 @@ def nis(innovations, innovation_covs):
     return out
 
 
-def consistency(values, n_sensors):
+def nees(estimates, covariances, truth, states=None):
+    """Normalised estimation error squared, one number per time step.
+
+    Where NIS asks "was I as surprised as I said I would be", NEES asks
+    "am I as close to the truth as I claim". It needs the true state, so it
+    only works in simulation -- but that is exactly what simulation is for.
+
+    The two catch different faults. Innovations only involve things a sensor
+    measures, so NIS is blind to any state nothing observes. Here nothing
+    measures position or heading: those can drift as far as they like and
+    every innovation stays perfectly well behaved.
+
+    `states` picks a subset, e.g. [3, 4] for speed and turn rate alone. That
+    matters because the full-state number is dominated by whichever states
+    have no measurement, so it mostly reports how Q was tuned rather than
+    anything about the sensors.
+    """
+    estimates = np.asarray(estimates)
+    truth = np.asarray(truth)
+    out = np.zeros(len(estimates))
+    for k in range(len(estimates)):
+        error = estimates[k] - truth[k]
+        P = covariances[k]
+        if states is not None:
+            error = error[states]
+            P = P[np.ix_(states, states)]
+        out[k] = error @ np.linalg.solve(P, error)
+    return out
+
+
+def consistency(values, dof):
     """Check both things a correctly tuned filter has to get right.
 
-    A tuned filter's NIS values follow a chi-square distribution with one
-    degree of freedom per sensor. That fixes two numbers, not one:
+    NIS and NEES both follow a chi-square distribution when the filter is
+    tuned -- one degree of freedom per sensor for NIS, per state for NEES.
+    That fixes two numbers, not one:
 
-        average  should be n_sensors
-        spread   should be 2 * n_sensors
+        average  should be dof
+        spread   should be 2 * dof
 
     Checking only the average is not enough. Chen et al. show a filter that
-    is tuned wrongly but still has exactly the right average NIS, with the
-    spread giving it away. So both are reported here, along with their
-    ratio, which should be 2.
+    is tuned wrongly but still has exactly the right average, with the
+    spread giving it away. We hit the same thing here: an average of 3.17
+    against a target of 3 looked fine while the spread was 7.2 against 6,
+    because two channels were over-trusted and one under-trusted by amounts
+    that cancelled in a sum and compounded in a square.
 
-    A spread that is too large means either the filter's own S does not
-    match how much the innovations really vary, or the innovations are not
-    centred on zero -- something is biasing them.
+    The median is reported too. These distributions have a long right tail,
+    and a handful of bad runs can drag the average well away from what a
+    typical run looks like.
     """
     values = np.asarray(values)
     return {
         "mean": float(values.mean()),
-        "mean_target": float(n_sensors),
+        "median": float(np.median(values)),
+        "target": float(dof),
         "variance": float(values.var()),
-        "variance_target": float(2 * n_sensors),
+        "variance_target": float(2 * dof),
         "ratio": float(values.var() / values.mean()),
     }
 
 
-def print_consistency(values, n_sensors, label=""):
-    c = consistency(values, n_sensors)
-    print("  %-18s %8s %8s" % (label, "measured", "target"))
-    print("  %-18s %8.3f %8.1f" % ("average NIS", c["mean"], c["mean_target"]))
-    print("  %-18s %8.3f %8.1f" % ("spread of NIS", c["variance"],
-                                   c["variance_target"]))
-    print("  %-18s %8.3f %8.1f" % ("spread / average", c["ratio"], 2.0))
+def print_consistency(values, dof, label=""):
+    c = consistency(values, dof)
+    print("  %-20s %9s %9s %9s %9s"
+          % (label, "average", "median", "spread", "ratio"))
+    print("  %-20s %9.3f %9.3f %9.3f %9.3f"
+          % ("measured", c["mean"], c["median"], c["variance"], c["ratio"]))
+    print("  %-20s %9.1f %9s %9.1f %9.1f"
+          % ("should be", c["target"], "~" + str(c["target"]),
+             c["variance_target"], 2.0))
     return c
 
 
@@ -234,62 +270,57 @@ if __name__ == "__main__":
     print("   covariance matches: %s" % np.allclose(got_cov, A @ cov0 @ A.T))
     print("   (sigma points reproduce a linear map perfectly, as they must)")
 
-    # ---- check 2: run it on a real simulated drive ----
-    print("\nCheck 2: filtering an actual run")
-    run = random_run(seed=0, duration=20.0)
-    meas = read_sensors(run, seed=0, dt=DT)
-    readings = np.column_stack([meas["left_encoder"],
-                                meas["right_encoder"],
-                                meas["gyro"]])
+    # ---- check 2: is the filter honest about its own uncertainty? ----
+    print("\nCheck 2: is the filter honest about its own uncertainty?")
 
-    # How much to distrust the motion model, per step. Position and heading
-    # follow the kinematics almost exactly, so those get almost nothing.
-    # Speed and turn rate have no model at all, so Q is what lets them move.
-    #
-    # These two numbers are not guesses. Speed changes by at most 0.0068 m/s
-    # in one step and turn rate by 0.0100 rad/s, so squaring those gives the
-    # variance the filter should expect per step. Picking Q by hand instead
-    # gets it wrong by orders of magnitude, and the NIS check below is what
-    # catches that.
     Q = np.diag([1e-9, 1e-9, 1e-9, 2e-5, 1e-4])
 
-    # how much to distrust each sensor -- roughly their true noise
-    R = np.diag([0.15 ** 2, 0.15 ** 2, 0.011 ** 2])
+    # R was not guessed. Starting from the sensors' own noise figures, the
+    # spread of NIS came out at 7.2 against a target of 6 even though the
+    # average looked right. Scaling each channel by how far its whitened
+    # innovations missed unit variance, three times over, gives these.
+    # The encoders needed MORE than their measurement noise alone, because
+    # S also carries state uncertainty, and because encoder noise really
+    # does vary with speed so no one number fits the whole range.
+    R = np.diag([0.1805 ** 2, 0.1708 ** 2, 0.00799 ** 2])
 
-    start_mean = np.array([0.0, 0.0, 0.0, run["speed"][0], run["turn_rate"][0]])
-    start_cov = np.diag([0.01, 0.01, 0.01, 0.10, 0.10])
+    all_nis, nees_full, nees_vel = [], [], []
+    for seed in range(20):
+        run = random_run(seed=seed, duration=20.0)
+        meas = read_sensors(run, seed=seed, dt=DT)
+        readings = np.column_stack([meas["left_encoder"],
+                                    meas["right_encoder"],
+                                    meas["gyro"]])
+        truth = np.column_stack([run["x"], run["y"], run["heading"],
+                                 run["speed"], run["turn_rate"]])
+        start_cov = np.diag([0.01, 0.01, 0.01, 0.10, 0.10])
 
-    ukf = UKF(Q, R)
-    means, covs, innovations, S = ukf.run(readings, start_mean, start_cov, DT)
+        means, covs, innovations, S = UKF(Q, R).run(
+            readings, truth[0].copy(), start_cov, DT)
 
-    speed_error = np.sqrt(np.mean((means[:, 3] - run["speed"]) ** 2))
-    turn_error = np.sqrt(np.mean((means[:, 4] - run["turn_rate"]) ** 2))
-    print("   speed off by     %.4f m/s" % speed_error)
-    print("   turn rate off by %.4f rad/s" % turn_error)
+        all_nis.append(nis(innovations, S))
+        nees_full.append(nees(means, covs, truth))
+        nees_vel.append(nees(means, covs, truth, states=[3, 4]))
 
-    raw_turn = (readings[:, 1] - readings[:, 0]) * 0.10 / 0.45
-    print("   for comparison, turn rate straight off the encoders: %.4f"
-          % np.sqrt(np.mean((raw_turn - run["turn_rate"]) ** 2)))
+    all_nis = np.concatenate(all_nis)
+    nees_full = np.concatenate(nees_full)
+    nees_vel = np.concatenate(nees_vel)
 
-    print("\nCheck 3: is the filter honest about its own uncertainty?")
-    values = nis(innovations, S)
-    print_consistency(values, n_sensors=3)
     print()
-    print("   Average too low means under-confident: it expected more")
-    print("   surprise than it got, usually because Q or R is too big.")
-    print("   Too high means over-confident, the dangerous side, since")
-    print("   everything downstream believes an estimate it should not.")
+    print_consistency(all_nis, 3, "NIS, 3 sensors")
     print()
-    print("   The spread matters as much as the average. A filter can hit")
-    print("   the right average while being tuned wrongly, so both are")
-    print("   reported.")
+    print_consistency(nees_vel, 2, "NEES, speed+turn")
     print()
-    print("   Ours runs about 20% wide, and the reason is not yet known.")
-    print("   Two explanations have been tested and ruled out:")
-    print("     - encoder tick rounding: turning it off and matching R to")
-    print("       the remaining noise leaves the spread at 7.46, no better")
-    print("     - correlation between time steps: measured at 0.09 to 0.14,")
-    print("       and averaging across runs instead of pooling over time")
-    print("       only moves it from 7.20 to 6.98")
-    print("   Still open: whether Q is mis-specified, and how much the")
-    print("   unmodelled per-run gyro bias contributes.")
+    print_consistency(nees_full, 5, "NEES, all 5 states")
+
+    print("\nReading the three together:")
+    print("  NIS passes, so the filter predicts its measurements honestly.")
+    print("  NEES on speed and turn rate is worse, and on the full state")
+    print("  worse still -- driven by position and heading, which nothing")
+    print("  measures. NIS cannot see those at all, because innovations")
+    print("  only involve quantities a sensor reports. That is the whole")
+    print("  reason for computing both.")
+    print("  Compare average against median on the full state: a few runs")
+    print("  behave badly and drag the average up. The average alone hides")
+    print("  what a typical run looks like; the median alone hides that")
+    print("  some runs go wrong.")
