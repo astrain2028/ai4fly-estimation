@@ -252,9 +252,10 @@ empirical.
 | `robot/dynamics.py` | Differential-drive kinematics: RK4 state propagation, wheel-speed relations, and the encoder inverse |
 | `robot/trajectories.py` | Command profiles and rollout: a deterministic reference serpentine, and band-limited randomised episodes for Monte Carlo generation |
 | `robot/sensors.py` | Healthy sensor models: quantised wheel encoders and a biased gyro, with state-dependent noise |
-| `robot/train_baseline.py` | Point-prediction baseline: state to sensor readings, mean squared error, no uncertainty output |
+| `models/plain/train.py` | Point-prediction baseline: state to sensor readings, mean squared error, no uncertainty output |
 | `robot/ukf.py` | Unscented Kalman filter over `[x, y, heading, speed, turn_rate]`, returning innovations and their covariances, and accepting a per-step measurement covariance |
-| `robot/learned_measurement.py` | Substitutes the trained network for the hand-written measurement model |
+| `models/plain/measurement.py` | Substitutes the trained network for the hand-written measurement model |
+| `models/bhr/train.py` | Heteroscedastic model: predicts a mean and a state-dependent variance per sensor, trained in the Gaussian natural parameterisation |
 | `data/robot_data.csv` | 100 runs of 20 s at 50 Hz (100,000 rows): state, true wheel rates, sensor readings, and the noise level that produced each reading |
 | `data/robot_data_sample.csv` | The first two runs, for inspection without loading the full file |
 
@@ -273,7 +274,8 @@ meaningful.
 python robot/dynamics.py        # property-based verification of the motion model
 python robot/trajectories.py    # trajectory determinism and state-space coverage
 python robot/sensors.py         # noise calibration, quantisation, channel redundancy
-python robot/train_baseline.py  # point-prediction baseline
+python models/plain/train.py    # point-prediction baseline
+python models/bhr/train.py      # heteroscedastic mean and variance
 python robot/ukf.py             # filter consistency on a simulated run
 python robot/learned_measurement.py   # hand-written vs learned measurement model
 ```
