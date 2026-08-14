@@ -134,6 +134,7 @@ def main():
     print("(exact GP maths on all of them would need a %d x %d matrix)"
           % (len(train_df), len(train_df)))
 
+    fitted = []
     print("\n%-15s %11s %8s %10s %10s"
           % ("", "lengthscale", "noise", "mean err", "predicted"))
     for i, (name, truth_col) in enumerate(zip(OUTPUTS, TRUE_NOISE)):
@@ -156,6 +157,11 @@ def main():
         err = np.sqrt(np.mean((pred_mean - val_df[name].values) ** 2))
         print("%-15s %11.2f %8.3f %10.4f %10.4f"
               % (name, ls, nz, err, pred_std.mean()))
+
+        # keep everything needed to answer questions later without refitting
+        fitted.append({"X": X, "alpha": gp.alpha, "L": gp.L,
+                       "lengthscale": ls, "noise": nz,
+                       "y_mean": y_mean, "y_std": y_std})
 
         if i == 0:                      # look closer at one channel
             left_epi, left_std, left_ls, left_nz = epi_s, pred_std, ls, nz
@@ -182,6 +188,13 @@ def main():
           % (left_std[fast].mean(), actual_fast))
     print("   The GP barely moves, because its noise is one fixed number.")
     print("   It knows when it is out of its depth, not when the sensor is noisy.")
+
+    saved = {"x_mean": x_mean, "x_std": x_std, "n_outputs": len(OUTPUTS)}
+    for i, f in enumerate(fitted):
+        for key, value in f.items():
+            saved["%s_%d" % (key, i)] = value
+    np.savez(Path(__file__).parent / "gp_model.npz", **saved)
+    print("\nSaved gp_model.npz")
 
 
 if __name__ == "__main__":

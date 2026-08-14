@@ -256,7 +256,9 @@ empirical.
 | `robot/ukf.py` | Unscented Kalman filter over `[x, y, heading, speed, turn_rate]`, returning innovations and their covariances, and accepting a per-step measurement covariance |
 | `models/plain/measurement.py` | Substitutes the trained network for the hand-written measurement model |
 | `models/bhr/train.py` | Heteroscedastic model: predicts a mean and a state-dependent variance per sensor, trained in the Gaussian natural parameterisation |
+| `models/bhr/measurement.py` | Supplies the heteroscedastic model to the filter, returning both readings and a per-step covariance |
 | `models/gp/train.py` | Gaussian process measurement model: epistemic uncertainty from the kernel, with a single homoscedastic noise term |
+| `models/gp/measurement.py` | Supplies the Gaussian process to the filter, on the same interface |
 | `data/robot_data.csv` | 100 runs of 20 s at 50 Hz (100,000 rows): state, true wheel rates, sensor readings, and the noise level that produced each reading |
 | `data/robot_data_sample.csv` | The first two runs, for inspection without loading the full file |
 

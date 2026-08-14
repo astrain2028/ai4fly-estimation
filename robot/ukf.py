@@ -119,6 +119,25 @@ class UKF:
         Returns the corrected estimate, plus the innovation and its
         covariance -- those two are what a consistency check needs, so they
         come back rather than being thrown away.
+
+        WHERE R COMES FROM WHEN THE MODEL PREDICTS IT
+
+        A model whose noise depends on the state gives a different answer at
+        every sample point, and only one number can go into the update. The
+        right one falls out of writing down what is actually being asked.
+
+        The reading is z = h(x) + noise, where the noise has covariance R(x),
+        and x is not known exactly -- it has a spread. So
+
+            spread of z = average of R(x)  +  spread of h(x)
+
+        The second term is what `rebuild` already computes from how far the
+        sample points land from each other. The first is the weighted average
+        of R over those same points, which is what is taken below.
+
+        Using R at the middle sample point alone would be simpler and is what
+        many implementations do, but it throws away the fact that the model
+        disagrees with itself across the spread of possible states.
         """
         if R is None:
             R = self.R
@@ -126,8 +145,15 @@ class UKF:
         points, w_mean, w_cov = sigma_points(mean, cov, self.alpha,
                                              self.beta, self.kappa)
 
-        # what each sample point says the sensors should read, all at once
-        predicted = np.asarray(self.measure(points))
+        # What each sample point says the sensors should read, all at once.
+        # A measurement model may also hand back its own noise, one covariance
+        # per sample point, in which case it overrides whatever R was passed.
+        out = self.measure(points)
+        if isinstance(out, tuple):
+            predicted, R_per_point = out
+            R = np.average(R_per_point, axis=0, weights=w_mean)
+        predicted = np.asarray(predicted if isinstance(out, tuple) else out)
+
         z_mean, S = rebuild(predicted, w_mean, w_cov, R)
 
         # how state and measurement vary together
