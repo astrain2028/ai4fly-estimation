@@ -23,7 +23,28 @@ DATA = ROOT / "data" / "robot_data.csv"
 import numpy as np
 import torch
 
-from train import make_model
+
+
+def _sibling_train():
+    """Load train.py from THIS folder.
+
+    Every arm has a file called train.py, so a plain `import train` picks
+    whichever one Python happened to load first -- the plain arm's module
+    would satisfy the bhr arm's import, silently. Loading by full path under
+    a unique name avoids that.
+    """
+    import importlib.util
+    here = Path(__file__).parent
+    spec = importlib.util.spec_from_file_location(
+        here.name + "_train", here / "train.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_train = _sibling_train()
+make_model = _train.make_model
+
 
 
 def load_measurement_model(path=str(Path(__file__).parent / "baseline_model.pt")):

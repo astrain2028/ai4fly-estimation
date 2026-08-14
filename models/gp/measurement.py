@@ -22,7 +22,29 @@ sys.path.insert(0, str(ROOT / "robot"))
 
 import numpy as np
 
-from train import rbf_kernel, OUTPUTS
+
+
+def _sibling_train():
+    """Load train.py from THIS folder.
+
+    Every arm has a file called train.py, so a plain `import train` picks
+    whichever one Python happened to load first -- the plain arm's module
+    would satisfy the bhr arm's import, silently. Loading by full path under
+    a unique name avoids that.
+    """
+    import importlib.util
+    here = Path(__file__).parent
+    spec = importlib.util.spec_from_file_location(
+        here.name + "_train", here / "train.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_train = _sibling_train()
+rbf_kernel = _train.rbf_kernel
+OUTPUTS = _train.OUTPUTS
+
 
 
 def load_measurement_model(path=None):
