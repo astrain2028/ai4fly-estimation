@@ -103,7 +103,10 @@ validated on a robotic blimp. Gupta and Guven [4] augment a Kalman filter
 with a neural measurement model for UAV tracking in degraded sensing; de
 Curtò and de Zarzà [5] combine a physics-informed network with an adaptive
 UKF. All three show a learned map absorbing structure a hand-specified model
-omits.
+omits. Liu et al. [14] make the covariance itself the learned object rather
+than the map, regressing a measurement's noise directly from raw sensor data
+with no hand-specified parametric form — the narrower ancestor of what is
+attempted here.
 
 The Gaussian process case is worth separating out, because it supplies one
 half of what is needed here and not the other. Its predictive variance grows
@@ -142,6 +145,18 @@ applies here, and the mitigation is to keep the learned object recognisable:
 a measurement map and a covariance, conditioned on a health variable with a
 physical meaning, rather than an unconstrained network mapping states to
 corrections.
+
+The nearest published neighbour is Unscented KalmanNet, Ko and Shafieezadeh
+[15], which leaves the sigma-point recursions intact and learns time-varying
+`Q` and `R` alongside them, trained against an objective rewarding calibration
+as well as accuracy and evaluated on both NIS and NEES. Two differences bear
+on the choices made here. Its covariances are produced as bounded triangular
+multipliers on a baseline Cholesky factor, `R = (L_base A)(L_base A)ᵀ`, which
+makes positive-definiteness structural but presupposes a hand-tuned baseline
+to deform, and never meets the gradient pathology that motivates the natural
+parameterisation below. And it addresses noise misspecification rather than
+sensor degradation: no health variable, no epistemic term, no fault to detect.
+The overlap covers the healthy-condition case; the divergence is what remains.
 
 ### Why the map must predict a covariance, not only a mean
 
@@ -182,6 +197,20 @@ position relative to the training distribution rather than residual structure
 — so high epistemic alongside large residuals indicates the model is
 extrapolating, whereas low epistemic alongside large residuals indicates the
 sensor.
+
+De Lucas Álvarez et al. [16] report the closest empirical test of that claim.
+Training a heteroscedastic correction to gyro measurements and taking the
+epistemic term from an ensemble of five networks, they inject degradation at
+three graded severities — correlated noise, periodic vibration, bias steps and
+drift, dropout — and find the epistemic term separates the severity regimes
+where the aleatoric term does not. That supports the decomposition and
+narrows what is left to establish. The open question is no longer whether
+epistemic uncertainty responds to degradation, but whether the response
+survives two constraints their setup does not impose: obtaining it at a fixed
+single-pass cost rather than by sampling an ensemble, and placing the model
+inside the filter rather than upstream of it, since their network corrects
+measurements before the estimator sees them and reports no consistency
+metrics.
 
 The same signal bears on fault coverage. A health-conditioned map learns the
 degradation modes present in its training data; a mode outside that set is
@@ -381,6 +410,15 @@ Physics-Informed Neural Networks with Adaptive UKF for Dynamic Systems,"
 for Data-Efficient Joint Tracking and Classification," 2026.
 [arXiv:2606.02767](https://arxiv.org/abs/2606.02767)
 
+[14] K. Liu, K. Ok, W. Vega-Brown, and N. Roy, "Deep Inference for Covariance
+Estimation: Learning Gaussian Noise Models for State Estimation," *IEEE
+International Conference on Robotics and Automation*, pp. 1436–1443, 2018.
+[doi:10.1109/ICRA.2018.8461047](https://doi.org/10.1109/ICRA.2018.8461047)
+
+[15] M. Ko and A. Shafieezadeh, "Unscented KalmanNet: Structure-Preserving
+Deep Learning with Calibrated Posterior Uncertainty under Incomplete Physics
+and Unknown Noise," 2026. [arXiv:2608.04201](https://arxiv.org/abs/2608.04201)
+
 **Heteroscedastic regression and predictive uncertainty**
 
 [7] M. Seitzer, A. Tavakoli, D. Antic, and G. Martius, "On the Pitfalls of
@@ -400,6 +438,11 @@ Processing Systems 32*, 2019.
 Out-of-Distribution Examples in Neural Networks," *International Conference
 on Learning Representations*, 2017.
 [arXiv:1610.02136](https://arxiv.org/abs/1610.02136)
+
+[16] M. De Lucas Álvarez, M. Laux, A. de Freitas Precht, M. Martin,
+E. Caroselli, F. Kirchner, and A. Fabisch, "Attribution and Uncertainty
+Behavior of Learned Residual Gyro Correction for Gyro-Stellar Estimation,"
+2026. [arXiv:2607.24608](https://arxiv.org/abs/2607.24608)
 
 **Filter consistency and self-assessment**
 
