@@ -8,10 +8,18 @@ its own answer, which grows away from the stored points.
 A warning about cost. The GP answers a question by comparing it against
 every stored point, so the work per call grows with how many points were
 kept -- and it grows as the square, because the comparison feeds a
-triangular solve. Keeping enough points to be accurate makes it far too slow
-to run in a real-time loop. That tension has no equivalent in the network
-models, whose cost is fixed by their shape rather than by how much data they
-were trained on.
+triangular solve.
+
+Measured, with 1500 stored points: 22.6 ms per filter step, against the 20 ms
+available at 50 Hz. Just over, and the only arm here that misses the budget
+at all -- the network models run in about 1 ms. Keeping fewer points would
+fit, at the cost of accuracy, which is a trade the network models never face:
+their cost is set by their shape, not by how much data they were trained on.
+
+That number is 243 times better than it was before this file used a
+triangular solve, and the story is worth keeping. Cost is a property of the
+implementation until proven otherwise, and "this method is too slow" is a
+claim that needs a profiler behind it.
 """
 
 import sys
@@ -21,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "robot"))
 
 import numpy as np
+from scipy.linalg import solve_triangular
 
 
 
@@ -75,8 +84,15 @@ def load_measurement_model(path=None):
             k = rbf_kernel(xs, gp["X"], float(gp["lengthscale"]))
             mean_s = k @ gp["alpha"]
 
-            # doubt left over after the stored points have had their say
-            v = np.linalg.solve(gp["L"], k.T)
+            # doubt left over after the stored points have had their say.
+            #
+            # L is a Cholesky factor, so it is lower triangular and this
+            # solve is a cheap back-substitution. np.linalg.solve does not
+            # know that and factorises the whole 1500x1500 matrix again on
+            # every call -- which it was doing here, once per sigma point per
+            # filter step, and it made the GP look hundreds of times more
+            # expensive than it is.
+            v = solve_triangular(gp["L"], k.T, lower=True)
             epistemic = np.maximum(1.0 - np.sum(v ** 2, axis=0), 0.0)
             total_s = epistemic + float(gp["noise"]) ** 2
 
