@@ -1,77 +1,69 @@
 """
-Finds Q and R that make the filter honest, instead of tuning them by eye.
+Searches for process and measurement noise covariances that leave the filter
+statistically consistent, rather than setting them by hand.
 
-THE PROBLEM THIS SOLVES
+Every arm currently fails the NEES test, the hand-written analytic model
+included, which fails it at 3.646 against a target of 2. A test that the
+control fails is not reporting on the measurement models; it is reporting on
+the process model, and no refinement of the measurement side will correct it.
 
-Every arm currently fails NEES. The best is 2.666 against a target of 2, and
-the hand-written analytic model fails it too, at 3.646. When the control fails
-a test, the test is not about the measurement models -- it is about the
-process model. Q is wrong, and no amount of work on the measurement side
-fixes it.
+The two covariances have to be searched jointly rather than in sequence.
+Increasing Q makes the filter less certain of its own prediction, which lowers
+NEES as intended, but the same change raises the predicted innovation
+covariance S = P_hh + R and so lowers NIS, which already sits slightly below
+target at 2.876. Adjusting either statistic alone displaces the other.
 
-WHY BOTH AT ONCE
+The objective follows Chen, Heckman, Julier and Ahmed [1] and its journal
+successor [2]: a correctly tuned filter matches both moments of the relevant
+chi-square distribution, not its mean alone. With three sensors, NIS should
+have mean 3 and variance 6; over the two states checked here, NEES should have
+mean 2 and variance 4. Each of the four quantities is scored by its relative
+departure from its own target and the four are summed, so that a large
+statistic and a small one contribute comparably. Tuning is carried out against
+the analytic measurement model, since Q describes the motion and should not be
+fitted through a learned component that could absorb error properly belonging
+to the dynamics.
 
-Raising Q makes the filter less sure of itself. That pulls NEES down, which
-is what is wanted. But the same change raises the predicted innovation spread
+Four limitations of this procedure deserve statement, since [1] and [2] are
+candid about them and this file proceeds anyway.
 
-    S = spread of h(x) + R
+NIS and NEES are chi-square distributed only when the filter is already
+correctly tuned. For any other parameter setting -- which is to say every
+candidate the search evaluates but the last -- [2] shows they follow a
+generalised chi-square distribution instead. The targets above are therefore
+valid only at the solution being sought, and intermediate scores are ordinal:
+a score of 4 is worse than a score of 1, but neither is a calibrated quantity.
 
-so NIS falls too, and NIS is already slightly under target at 2.876. Fixing
-one breaks the other, so they have to be searched together: raise Q to fix
-NEES, lower R to put NIS back.
+Matching both moments removes one failure mode and not all of them. [2]
+demonstrates that the two-moment criterion still admits distinct filters with
+indistinguishable statistics, and introduces a further measure for that
+reason. The simpler criterion is retained here for legibility, which is a
+deliberate simplification rather than a claim of sufficiency.
 
-THE SCORE
+Improvement in one moment at the expense of another is characteristic of these
+objectives rather than diagnostic of the model. [2] reports that minimising
+the mean NIS displaces its variance, and conversely. A search that repairs
+NEES while degrading NIS therefore establishes nothing on its own about model
+structure; such a conclusion requires evidence independent of any consistency
+statistic.
 
-Chen et al. give the standard: a correctly tuned filter matches BOTH moments
-of a chi-square, not just the average.
+A fixed grid is a poor search strategy for this problem. The objective is a
+stochastic, non-differentiable function evaluated by simulation, which is
+precisely the setting [1] and [2] address with Bayesian optimisation over a
+surrogate model, and ten Monte Carlo runs per candidate is thin for statistics
+of this variance. The grid below is a coarse starting point.
 
-    NIS  mean 3, spread 6      (three sensors)
-    NEES mean 2, spread 4      (two states being checked)
+NEES additionally requires the true state and is available only in simulation.
+Only NIS can be computed aboard the vehicle, so every NEES result in this
+project is a statement about the simulator rather than about hardware.
 
-Each of the four is scored by how far off it is relative to its own target,
-so that a large number and a small one count equally, and the four are added.
-Zero is perfect.
-
-Searched on the analytic model, because Q is a property of the motion model
-and should not be fitted through a learned component.
-
-WHAT THIS SCORE CANNOT TELL YOU
-
-The same authors are careful about the limits of these statistics, and this
-file uses them anyway, so the limits belong here rather than buried in a
-citation.
-
-The targets are only correct at the answer. NIS and NEES follow a chi-square
-distribution when the filter is already tuned properly. When it is not --
-which is every candidate this search tries except the last one -- they follow
-a generalised chi-square instead, so 3 / 6 / 2 / 4 is the right yardstick
-only at the point the search is trying to reach. Scores far from zero should
-be read as "worse" and not as any particular quantity.
-
-Two moments are necessary and still not sufficient. Checking the spread as
-well as the average removes one way a filter can look correct while being
-wrong, but Chen et al. show in the 2024 paper that it does not remove all of
-them, and they propose a different measure for that reason. This file uses
-the older criterion because it is simple enough to read; that is a choice
-made for clarity and not because the criterion is adequate.
-
-Winning on one moment while losing on another is expected. Optimising the
-mean NIS pulls the variance off, and optimising the variance pulls the mean
-off -- the 2024 paper reports exactly that. So a search that fixes NEES while
-breaking NIS has not necessarily discovered anything about the model; that
-pattern is a property of these objectives. Deciding the process model is
-wrong needs separate evidence, of the kind that does not depend on any
-consistency metric.
-
-A grid is the wrong search. These scores come from a stochastic simulation
-with no derivatives, and both papers exist largely to say that such problems
-want Bayesian optimisation over a surrogate rather than a fixed grid. Ten
-runs per candidate is also thin for statistics this noisy. The grid here is
-honest about being a starting point.
-
-And NEES needs the true state, so it exists only in simulation. On the actual
-robot only NIS can be computed, which means every NEES number in this project
-is a claim about the simulator rather than about the hardware.
+[1] Z. Chen, C. Heckman, S. Julier and N. Ahmed, "Weak in the NEES?:
+    Auto-tuning Kalman Filters with Bayesian Optimization," 2018.
+    arXiv:1807.08855
+[2] Z. Chen, H. Biggie, N. Ahmed, S. Julier and C. Heckman, "Kalman Filter
+    Auto-Tuning With Consistent and Robust Bayesian Optimization," IEEE
+    Transactions on Aerospace and Electronic Systems, vol. 60, no. 2,
+    pp. 2236-2250, 2024. doi:10.1109/TAES.2024.3350587
 """
 
 import sys
@@ -189,7 +181,8 @@ def main():
              np.sqrt(R_TUNED[1, 1] * r_scale),
              np.sqrt(R_TUNED[2, 2] * r_scale)))
 
-    edge = (q_speed / Q[3, 3] == Q_SCALES[-1] or q_turn / Q[4, 4] == Q_SCALES[-1]
+    edge = (q_speed / Q[3, 3] == Q_SCALES[-1]
+            or q_turn / Q[4, 4] == Q_SCALES[-1]
             or r_scale in (R_SCALES[0], R_SCALES[-1]))
     if edge:
         print("\n  WARNING: a chosen value sits at the edge of its grid, so a")
