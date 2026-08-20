@@ -7,7 +7,7 @@ random wandering for generating lots of different training runs.
 
 import numpy as np
 
-from dynamics import step, wheel_spin_rates
+from dynamics import step, true_wheel_spin_rates
 
 DT = 0.02          # seconds per step (50 steps per second)
 DURATION = 30.0    # seconds per run
@@ -68,7 +68,10 @@ def drive(speed, turn_rate, dt=DT):
         heading[k] = state[2]
         state = step(state, speed[k], turn_rate[k], dt)
 
-    left_spin, right_spin = wheel_spin_rates(speed, turn_rate)
+    # The TRUE spin rates, which is what the encoders see. The filter's
+    # own model uses the written-down constants instead, and the two only
+    # agree when the calibration errors in dynamics.py are zero.
+    left_spin, right_spin = true_wheel_spin_rates(speed, turn_rate)
 
     return {
         "t": np.arange(n) * dt,

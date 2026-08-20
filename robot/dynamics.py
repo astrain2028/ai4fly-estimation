@@ -10,23 +10,61 @@ import numpy as np
 WHEEL_RADIUS = 0.10    # meters
 TRACK_WIDTH = 0.45     # meters, from the left wheels to the right wheels
 
+# What the robot ACTUALLY is, as a fraction off the numbers above.
+#
+# The two constants are what somebody measured and wrote down. The real wheel
+# radius changes with tyre pressure and wear, and the real track width is a
+# ruler measurement between two contact patches that are not points. So the
+# vehicle the sensors are attached to is never quite the vehicle the equations
+# describe.
+#
+# This matters more than it sounds, because the hand-written measurement model
+# in ukf.py is built from the constants above. With these errors at zero, that
+# model is not an approximation of the truth -- it IS the truth, exactly, and
+# nothing learned from data can beat it. That makes the simulation
+# unrealistically kind to the analytic model and unrealistically harsh to
+# every learned one.
+#
+# At 12 rad/s of wheel spin a 3 per cent radius error is 0.36 rad/s of bias,
+# against a noise level near 0.18. Twice the noise, systematic, and invisible
+# to anyone who trusts the equations.
+RADIUS_ERROR = 0.0
+WIDTH_ERROR = 0.0
 
-def wheel_speeds(speed, turn_rate):
+
+def wheel_speeds(speed, turn_rate, width=None):
     """How fast each side travels, in m/s.
 
     Turning left puts the left wheels on the inside of the curve, so they
     cover less ground and move slower than the right ones.
     """
-    half = TRACK_WIDTH / 2
+    half = (TRACK_WIDTH if width is None else width) / 2
     left = speed - turn_rate * half
     right = speed + turn_rate * half
     return left, right
 
 
 def wheel_spin_rates(speed, turn_rate):
-    """How fast each wheel spins, in rad/s. This is what an encoder measures."""
+    """How fast each wheel spins according to the written-down constants.
+
+    This is what the filter's measurement model believes. It is NOT what the
+    encoders report unless the calibration errors above are zero.
+    """
     left, right = wheel_speeds(speed, turn_rate)
     return left / WHEEL_RADIUS, right / WHEEL_RADIUS
+
+
+def true_wheel_spin_rates(speed, turn_rate):
+    """How fast the wheels really spin, which is what an encoder measures.
+
+    The simulator uses this. The filter uses the function above. When the
+    calibration errors are zero the two agree exactly, and the difference
+    between them is the whole point of having them.
+    """
+    width = TRACK_WIDTH * (1.0 + WIDTH_ERROR)
+    radius = WHEEL_RADIUS * (1.0 + RADIUS_ERROR)
+    left, right = wheel_speeds(speed, turn_rate, width=width)
+    return left / radius, right / radius
 
 
 def speed_and_turn_from_wheels(left_speed, right_speed):
