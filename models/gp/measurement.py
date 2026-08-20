@@ -53,6 +53,7 @@ def _sibling_train():
 _train = _sibling_train()
 rbf_kernel = _train.rbf_kernel
 OUTPUTS = _train.OUTPUTS
+INPUTS = _train.INPUTS
 
 
 
@@ -74,7 +75,10 @@ def load_measurement_model(path=None):
            for i in range(n_out)]
 
     def measure(states):
-        states = np.atleast_2d(states)
+        # The filter carries more states than this model was trained
+        # on -- the accelerations are appended after speed and turn
+        # rate, which the sensors do not see. Take the five it knows.
+        states = np.atleast_2d(states)[:, :len(INPUTS)]
         xs = (states - x_mean) / x_std
 
         readings = np.zeros((len(states), n_out))

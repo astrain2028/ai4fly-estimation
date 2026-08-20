@@ -1,14 +1,19 @@
 """
 An Unscented Kalman Filter for the robot.
 
-The filter estimates five things:
+The filter estimates seven things:
 
-    [x, y, heading, speed, turn_rate]
+    [x, y, heading, speed, turn_rate, accel, turn_accel]
 
 Position and heading move according to the kinematics. Speed and turn rate
-have no model at all -- they are assumed to drift slowly, and the encoders
-and gyro are what pin them down. That is the point of the filter: it works
-out how fast the robot is going from the wheel readings.
+are moved by the accelerations, and the accelerations drift. The encoders and
+gyro are what pin all of it down: the point of the filter is to work out how
+fast the robot is going from the wheel readings.
+
+Only the first five are observable in any direct sense -- the sensors report
+speed and turn rate, and nothing reports acceleration. It is carried anyway
+because the alternative is worse. See move_state for the measurement that
+settles it.
 
 WHY UNSCENTED AND NOT PLAIN KALMAN
 
@@ -67,13 +72,34 @@ def rebuild(points, w_mean, w_cov, extra_noise):
 def move_state(state, dt):
     """The motion model the filter uses.
 
-    Position and heading follow the kinematics, driven by the speed and turn
-    rate the filter currently believes. Those last two are left alone -- the
-    process noise Q is what lets them change.
+        [x, y, heading, speed, turn_rate, accel, turn_accel]
+
+    Position and heading follow the kinematics. Speed and turn rate are moved
+    by the accelerations, and the accelerations themselves are left alone --
+    the process noise Q is what lets those drift.
+
+    WHY ACCELERATION IS A STATE
+
+    An earlier version stopped at five states and let Q move speed and turn
+    rate directly, which says their step-to-step changes are independent
+    noise. That is a random walk, and it is measurably wrong here: the
+    increments of the true speed have a lag-1 autocorrelation of 0.998, where
+    a random walk requires 0.00. The robot accelerates smoothly.
+
+    No value of Q repairs that, because the error is in the shape of the model
+    and not its scale. Tuning it produced exactly the symptom of an
+    unsatisfiable fit -- NEES could be brought to target only by pushing NIS
+    away from it, and vice versa.
+
+    Acceleration, on the other hand, really does behave like a random walk
+    here: it changes by about 2 per cent of its own spread per step. So it is
+    the right place to put the process noise.
     """
-    x, y, heading, speed, turn_rate = state
+    x, y, heading, speed, turn_rate, accel, turn_accel = state
     moved = step(np.array([x, y, heading]), speed, turn_rate, dt)
-    return np.array([moved[0], moved[1], moved[2], speed, turn_rate])
+    return np.array([moved[0], moved[1], moved[2],
+                     speed + accel * dt, turn_rate + turn_accel * dt,
+                     accel, turn_accel])
 
 
 def expected_readings(states):
@@ -189,6 +215,14 @@ class UKF:
             R = None if R_series is None else R_series[k]
             mean, cov, innovation, S = self.update(mean, cov, readings[k], R)
 
+            # A measurement model that tunes itself from its own past mistakes
+            # needs to be told how each step went. Classical adaptive filtering
+            # works exactly this way: watch the innovations, and if they are
+            # consistently bigger than claimed, raise R. Models that do not
+            # adapt have no observe method and never hear about it.
+            if hasattr(self.measure, "observe"):
+                self.measure.observe(innovation, S)
+
             means[k] = mean
             covs[k] = cov
             innovations[k] = innovation
@@ -299,7 +333,12 @@ if __name__ == "__main__":
     # ---- check 2: is the filter honest about its own uncertainty? ----
     print("\nCheck 2: is the filter honest about its own uncertainty?")
 
-    Q = np.diag([1e-9, 1e-9, 1e-9, 2e-5, 1e-4])
+    # Process noise over the seven states. Speed and turn rate are moved by
+    # the accelerations rather than by noise, so their own entries are tiny
+    # and the noise lives on the accelerations. Those two values are searched
+    # rather than measured -- see experiments/common.py for why the measured
+    # ones are far too small.
+    Q = np.diag([1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-3, 1e-1])
 
     # R was not guessed. Starting from the sensors' own noise figures, the
     # spread of NIS came out at 7.2 against a target of 6 even though the
@@ -317,9 +356,15 @@ if __name__ == "__main__":
         readings = np.column_stack([meas["left_encoder"],
                                     meas["right_encoder"],
                                     meas["gyro"]])
+        # The trajectory carries no accelerations, so they are differenced
+        # out of the speed and turn rate.
+        accel = np.diff(run["speed"], append=run["speed"][-1]) / DT
+        turn_accel = np.diff(run["turn_rate"],
+                             append=run["turn_rate"][-1]) / DT
         truth = np.column_stack([run["x"], run["y"], run["heading"],
-                                 run["speed"], run["turn_rate"]])
-        start_cov = np.diag([0.01, 0.01, 0.01, 0.10, 0.10])
+                                 run["speed"], run["turn_rate"],
+                                 accel, turn_accel])
+        start_cov = np.diag([0.01, 0.01, 0.01, 0.10, 0.10, 0.04, 0.04])
 
         means, covs, innovations, S = UKF(Q, R).run(
             readings, truth[0].copy(), start_cov, DT)
@@ -337,15 +382,19 @@ if __name__ == "__main__":
     print()
     print_consistency(nees_vel, 2, "NEES, speed+turn")
     print()
-    print_consistency(nees_full, 5, "NEES, all 5 states")
+    print_consistency(nees_full, 7, "NEES, all 7 states")
 
     print("\nReading the three together:")
     print("  NIS passes, so the filter predicts its measurements honestly.")
-    print("  NEES on speed and turn rate is worse, and on the full state")
-    print("  worse still -- driven by position and heading, which nothing")
-    print("  measures. NIS cannot see those at all, because innovations")
-    print("  only involve quantities a sensor reports. That is the whole")
-    print("  reason for computing both.")
+    print("  NEES on speed and turn rate is near target now that")
+    print("  acceleration is a state. It sat near 3.6 before, because a")
+    print("  random walk is the wrong shape for motion this smooth --")
+    print("  the true speed increments have a lag-1 correlation of 0.998,")
+    print("  where a random walk requires zero.")
+    print("  The full-state figure is still poor, driven by position and")
+    print("  heading, which nothing measures. NIS cannot see those at all,")
+    print("  because innovations only involve quantities a sensor reports.")
+    print("  That is the whole reason for computing both.")
     print("  Compare average against median on the full state: a few runs")
     print("  behave badly and drag the average up. The average alone hides")
     print("  what a typical run looks like; the median alone hides that")

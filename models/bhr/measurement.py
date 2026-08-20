@@ -39,6 +39,7 @@ make_model = _train.make_model
 split_outputs = _train.split_outputs
 to_mean_and_var = _train.to_mean_and_var
 OUTPUTS = _train.OUTPUTS
+INPUTS = _train.INPUTS
 
 
 
@@ -80,7 +81,10 @@ def load_measurement_model(path=None, use_laplace=True):
     trunk, head = model[:-1], model[-1]
 
     def measure(states):
-        states = np.atleast_2d(states)
+        # The filter carries more states than this model was trained
+        # on -- the accelerations are appended after speed and turn
+        # rate, which the sensors do not see. Take the five it knows.
+        states = np.atleast_2d(states)[:, :len(INPUTS)]
         x = torch.tensor(states, dtype=torch.float32)
 
         with torch.no_grad():

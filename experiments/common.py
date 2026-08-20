@@ -17,18 +17,33 @@ import time
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "robot"))
 
 from trajectories import DT, random_run
-from sensors import read_sensors
+from sensors import read_sensors, TICKS_PER_TURN
 from ukf import UKF, nis, nees
 
 # ---------------------------------------------------------------- settings
 
-# How much the motion model is distrusted.
-Q = np.diag([1e-9, 1e-9, 1e-9, 2e-5, 1e-4])
+# How much the motion model is distrusted, over
+#   [x, y, heading, speed, turn_rate, accel, turn_accel]
+#
+# Speed and turn rate are driven by the accelerations rather than by noise, so
+# their own entries are tiny.
+#
+# The acceleration entries are searched, not measured. The step-to-step change
+# in the true accelerations is about 0.0040 m/s^2 and 0.0033 rad/s^2, which
+# would suggest 1.6e-5 and 1.1e-5 -- and those values make the filter far
+# worse, giving NIS 6.3 against a target of 3. The reason is that acceleration
+# sits two integrations away from anything a sensor reports, so it is only
+# weakly observable, and the filter needs more freedom to move it than the
+# true signal actually uses. What the process noise has to cover here is the
+# filter's difficulty in estimating the state, not only the state's own
+# variability.
+Q = np.diag([1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-3, 1e-1])
 
 # The hand-tuned sensor noise. Arrived at by covariance matching: filter,
 # measure how big the innovations really were, adjust, repeat. This is the
@@ -36,8 +51,9 @@ Q = np.diag([1e-9, 1e-9, 1e-9, 2e-5, 1e-4])
 # without its own covariance is allowed to use.
 R_TUNED = np.diag([0.1805 ** 2, 0.1708 ** 2, 0.00799 ** 2])
 
-# How unsure the filter is at the start.
-P0 = np.diag([0.01, 0.01, 0.01, 0.10, 0.10])
+# How unsure the filter is at the start. The accelerations begin unknown, so
+# their entries are the spread of the true accelerations across runs.
+P0 = np.diag([0.01, 0.01, 0.01, 0.10, 0.10, 0.04, 0.04])
 
 DURATION = 20.0
 N_RUNS = 20
@@ -65,7 +81,7 @@ ARMS = [
 ]
 
 LABELS = {
-    "fixed": "analytic + tuned R",
+    "fixed": "analytic + best const R",
     "plain": "plain network",
     "resnet": "residual network",
     "adaptive": "adaptive R (Mehra)",
@@ -126,8 +142,16 @@ def make_run(seed, duration=DURATION):
     """
     run = random_run(seed, duration=duration)
     meas = read_sensors(run, seed=seed, dt=DT)
+
+    # The trajectory carries no accelerations, so they are differenced out of
+    # the speed and turn rate. The last sample is repeated rather than
+    # dropped, to keep every array the same length as the measurements.
+    accel = np.diff(run["speed"], append=run["speed"][-1]) / DT
+    turn_accel = np.diff(run["turn_rate"], append=run["turn_rate"][-1]) / DT
+
     truth = np.column_stack([run["x"], run["y"], run["heading"],
-                             run["speed"], run["turn_rate"]])
+                             run["speed"], run["turn_rate"],
+                             accel, turn_accel])
     return run, meas, truth
 
 
@@ -171,7 +195,7 @@ def filter_once(measure, meas, truth, R=R_TUNED):
     }
 
 
-def gather(measure, seeds, fault=None):
+def gather(measure, seeds, fault=None, R=R_TUNED):
     """Filter every seed and pool the results.
 
     `fault` is an optional function taking the readings dict and returning a
@@ -183,7 +207,7 @@ def gather(measure, seeds, fault=None):
         run, meas, truth = make_run(seed)
         if fault is not None:
             meas = fault(meas, seed)
-        rows.append(filter_once(measure, meas, truth))
+        rows.append(filter_once(measure, meas, truth, R))
 
     return {
         "speed_rmse": np.array([r["speed_rmse"] for r in rows]),
@@ -193,6 +217,31 @@ def gather(measure, seeds, fault=None):
         "ms_per_step": 1000 * sum(r["seconds"] for r in rows)
                        / sum(r["steps"] for r in rows),
     }
+
+
+def best_constant_R(frame=None):
+    """The best single covariance a constant-R filter could possibly use.
+
+    A constant cannot track anything, so the most it can do is match the
+    average variance over the run. Anything else is worse by construction.
+
+    This matters more than it looks. The hand-tuned R_TUNED above was found by
+    covariance matching and came out at 0.1805 for the left encoder, where the
+    average is nearer 0.157 -- it absorbs state uncertainty as well as sensor
+    noise, so it is inflated as a description of the sensor. Using the
+    inflated value as the baseline made the learned covariance look better
+    than it is. A learned model should have to beat the best constant
+    available, not a convenient one.
+    """
+    if frame is None:
+        frame = pd.read_csv(ROOT / "data" / "robot_data.csv")
+    tick = (2 * np.pi / TICKS_PER_TURN) / DT
+    quant = tick ** 2 / 12
+    return np.diag([
+        frame["left_noise"].pow(2).mean() + quant,
+        frame["right_noise"].pow(2).mean() + quant,
+        frame["gyro_noise"].pow(2).mean() + frame["gyro_bias"].var(),
+    ])
 
 
 def two_moment(values, dof):

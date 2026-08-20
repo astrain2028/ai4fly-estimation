@@ -42,6 +42,7 @@ def _sibling_train():
 
 _train = _sibling_train()
 make_model = _train.make_model
+INPUTS = _train.INPUTS
 
 
 
@@ -64,7 +65,10 @@ def load_measurement_model(path=None):
     y_mean, y_std = saved["y_mean"], saved["y_std"]
 
     def measure(states):
-        states = np.atleast_2d(states)
+        # The filter carries more states than this model was trained
+        # on -- the accelerations are appended after speed and turn
+        # rate, which the sensors do not see. Take the five it knows.
+        states = np.atleast_2d(states)[:, :len(INPUTS)]
         x = torch.tensor(states, dtype=torch.float32)
 
         # no_grad because we only want the answer, not derivatives
