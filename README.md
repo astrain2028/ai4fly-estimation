@@ -239,6 +239,21 @@ another — require training examples of joint faults, which are
 combinatorially many. And the aleatoric component must still be learned from
 data, so only the epistemic half is trainable on healthy operation alone.
 
+A more basic assumption runs underneath all of it. The sigma-point recursions
+carry a mean and a covariance, the chi-square targets for NIS and NEES hold
+only for Gaussian errors, and the natural-parameter likelihood is Gaussian by
+construction — so the entire apparatus presumes the posterior stays
+approximately Gaussian. Sensor degradation is precisely the regime where that
+is least safe: a stuck channel, an intermittent dropout, or a bimodal
+"working or not" condition produces a posterior that no single covariance
+describes, and a filter can then report excellent consistency statistics
+while its distributional shape is wrong. DeMars, Bishop, and Jah [17] address
+this directly in orbit determination, using the entropy difference between a
+propagated distribution and its Gaussian fit as a criterion for when a single
+Gaussian has stopped being adequate, and splitting a mixture component when
+it has. Nothing here detects that condition, and the fault modes most likely
+to cause it are the ones this project intends to inject.
+
 ## Evaluation
 
 Filter consistency is the primary criterion, following Chen et al. [11], [12]:
@@ -281,13 +296,25 @@ empirical.
 | `robot/dynamics.py` | Differential-drive kinematics: RK4 state propagation, wheel-speed relations, and the encoder inverse |
 | `robot/trajectories.py` | Command profiles and rollout: a deterministic reference serpentine, and band-limited randomised episodes for Monte Carlo generation |
 | `robot/sensors.py` | Healthy sensor models: quantised wheel encoders and a biased gyro, with state-dependent noise |
+| `robot/faults.py` | Degradation modes applied to readings after the fact: bias, drift, variance inflation, scale error, stuck, dropout, on a continuous severity scale |
+| `robot/ukf.py` | Unscented Kalman filter over `[x, y, heading, speed, turn_rate]`, returning innovations and their covariances, accepting a per-step measurement covariance, and notifying measurement models that adapt online |
+| `models/fixed/measurement.py` | Control arm: the analytic measurement model with a constant covariance tuned by covariance matching |
 | `models/plain/train.py` | Point-prediction baseline: state to sensor readings, mean squared error, no uncertainty output |
-| `robot/ukf.py` | Unscented Kalman filter over `[x, y, heading, speed, turn_rate]`, returning innovations and their covariances, and accepting a per-step measurement covariance |
-| `models/plain/measurement.py` | Substitutes the trained network for the hand-written measurement model |
-| `models/bhr/train.py` | Heteroscedastic model: predicts a mean and a state-dependent variance per sensor, trained in the Gaussian natural parameterisation |
-| `models/bhr/measurement.py` | Supplies the heteroscedastic model to the filter, returning both readings and a per-step covariance |
+| `models/resnet/train.py` | The same objective through residual blocks: a capacity control isolating depth from every other difference |
+| `models/adaptive/measurement.py` | Mehra-style online covariance matching: no training, covariance estimated from a window of innovations |
 | `models/gp/train.py` | Gaussian process measurement model: epistemic uncertainty from the kernel, with a single homoscedastic noise term |
-| `models/gp/measurement.py` | Supplies the Gaussian process to the filter, on the same interface |
+| `models/bhr/train.py` | Heteroscedastic model: predicts a mean and a state-dependent variance per sensor, trained in the Gaussian natural parameterisation |
+| `models/ensemble/train.py` | Five heteroscedastic models from different initialisations; predictive variance splits into within-member noise and between-member disagreement |
+| `models/*/measurement.py` | Each arm on one interface: states in, readings out, and a per-step covariance where the arm has one |
+| `robot/make_dataset.py` | Regenerates the dataset, with sensor noise growth, encoder resolution, and vehicle calibration error as parameters |
+| `models/bhr/laplace.py` | Laplace posterior over the heteroscedastic model's last layer: epistemic uncertainty at a single forward pass, prior precision chosen by evidence |
+| `experiments/common.py` | Shared filter settings, arm registry, and scoring, so no experiment can quietly choose its own baseline |
+| `experiments/calibration.py` | Test 1: what a hand-written measurement model is worth when the vehicle differs from its specification |
+| `experiments/heteroscedasticity.py` | Test 2: when a state-dependent covariance starts earning its cost, swept from homoscedastic upward |
+| `experiments/envelope.py` | Test 3: whether the model reports its own ignorance outside the states it was trained on, and at what cost |
+| `experiments/tune.py` | Searches process and measurement covariances against both moments of the chi-square criterion |
+| `experiments/healthy.py` | Every arm on identical runs with no degradation: accuracy, NIS and NEES with both moments, and cost per filter step |
+| `experiments/degradation.py` | Every arm under graded sensor degradation: whether each arm's claimed noise tracks the real noise |
 | `data/robot_data.csv` | 100 runs of 20 s at 50 Hz (100,000 rows): state, true wheel rates, sensor readings, and the noise level that produced each reading |
 | `data/robot_data_sample.csv` | The first two runs, for inspection without loading the full file |
 
@@ -306,11 +333,23 @@ meaningful.
 python robot/dynamics.py        # property-based verification of the motion model
 python robot/trajectories.py    # trajectory determinism and state-space coverage
 python robot/sensors.py         # noise calibration, quantisation, channel redundancy
+python robot/faults.py          # degradation modes and the severity scale
+python robot/ukf.py             # filter consistency on a simulated run
+
 python models/plain/train.py    # point-prediction baseline
+python models/resnet/train.py   # the same objective, deeper
 python models/bhr/train.py      # heteroscedastic mean and variance
 python models/gp/train.py       # Gaussian process, epistemic uncertainty
-python robot/ukf.py             # filter consistency on a simulated run
-python robot/learned_measurement.py   # hand-written vs learned measurement model
+python models/ensemble/train.py # five heteroscedastic models
+
+python models/bhr/laplace.py    # epistemic term, fitted after training
+
+python experiments/common.py             # which arms are trained and ready
+python experiments/healthy.py            # all arms, no degradation
+python experiments/degradation.py        # all arms, sensor going bad
+python experiments/calibration.py        # test 1: is the map right?
+python experiments/heteroscedasticity.py # test 2: is the noise structure right?
+python experiments/envelope.py           # test 3: does it know what it does not know?
 ```
 
 Fusing the gyro with the encoder difference recovers turn rate to 0.0083
@@ -340,35 +379,52 @@ mode Chen et al. describe, encountered independently here.
 
 Scaling each channel by its own whitened variance, iterated three times,
 gives encoder standard deviations of 0.1805 and 0.1708 and a gyro figure of
-0.0080, against starting values of 0.15 and 0.011. Note that the encoders
-require *more* than their measured sensor noise, since the innovation
-covariance also carries state uncertainty, and since encoder noise genuinely
-varies with wheel speed across 0.133 to 0.159 — no single constant fits both
-ends. That is an argument for a state-conditioned covariance which owes
-nothing to faults, and holds for an entirely healthy vehicle.
+0.0080, against starting values of 0.15 and 0.011.
 
-With the corrected covariance, measured over twenty runs:
+That result was subsequently found to be misleading, and the correction is
+worth recording rather than quietly replacing. The tuned encoder figures are
+*larger* than the sensors themselves, whose average spread is nearer 0.150.
+The excess was state uncertainty being absorbed into the measurement
+covariance, because the process model was wrong — see below. Used as the
+baseline for a learned covariance, an inflated constant flatters anything
+compared against it, and it did: the heteroscedastic model appeared to beat
+the analytic one on 17 runs of 20, and against a properly chosen constant it
+does not beat it at all. Experiments now compute the best available constant,
+which is the average variance, rather than reusing this one.
 
-| | average | median | variance | target |
-|---|---|---|---|---|
-| NIS, 3 measurements | 2.88 | 2.30 | 5.55 | 3 and 6 |
-| NEES, speed and turn rate | 3.65 | 2.53 | 13.44 | 2 and 4 |
-| NEES, all five states | 22.49 | 5.81 | 3614.9 | 5 and 10 |
+### The process model, and what it invalidated
 
-NIS passes and NEES does not, which is the reason for computing both.
-Innovations involve only quantities a sensor reports, so NIS is structurally
-blind to any state nothing observes — here position and heading, which are
-free to drift while every innovation remains well behaved. NEES requires the
-true state and is therefore a simulation-only diagnostic, but that is what
-simulation is for.
+NEES failed for every arm, including the hand-written control, which fails it
+at 3.65 against a target of 2. A test the control fails is not reporting on
+the measurement models.
 
-NEES is reported over subsets as well as the full state. The full-state
-figure is dominated by the unobserved components and so mostly grades the
-process noise; the speed-and-turn-rate subset is what speaks to the
-measurement model. Median and mean are both given because the distribution
-has a long tail: a full-state median of 5.8 against a mean of 22.5 means
-most runs are acceptable and a few are not, and either statistic alone would
-misrepresent that.
+Tuning could not repair it: process noise large enough to bring NEES to
+target pushed NIS away from it, and the reverse. Chen et al. [12] note that
+this trade is characteristic of these objectives, so it is suggestive rather
+than conclusive, and a direct test settles it. Speed and turn rate were
+modelled as random walks, which asserts that their step-to-step changes are
+independent. Measured over twenty runs, the lag-1 autocorrelation of those
+increments is **0.998**, where a random walk requires zero, and the true
+acceleration changes by around two per cent of its own spread per step. The
+robot accelerates smoothly; the model said it jitters.
+
+The state now carries acceleration, and speed and turn rate are moved by it:
+
+| | 5 states | 7 states |
+|---|---|---|
+| speed error, m/s | 0.0080 | 0.0052 |
+| NEES, speed and turn rate | 3.65 | 1.81 |
+| NEES variance | 13.44 | 3.37 |
+| target | 2 and 4 | 2 and 4 |
+
+NEES passes on both moments for the first time. Every NEES figure reported
+before this change was grading the process model rather than any measurement
+model, and the earlier full-state figure of 22.49 belongs to that category.
+
+NIS remains structurally blind to any state nothing observes — here position
+and heading, which are free to drift while every innovation stays well
+behaved — which is why both are computed. NEES additionally requires the true
+state, so it exists only in simulation; on hardware only NIS is available.
 
 The baseline reaches the noise floor on held-out runs — 0.153 against a
 limit of 0.149 for the encoders, 0.0123 against 0.0117 for the gyro — where
@@ -377,6 +433,96 @@ gyro, the per-run bias that is unknowable for a run not seen in training.
 Its residual error tracks wheel speed, rising from 0.110 to 0.130 across the
 range, while the model reports a single value throughout. That gap is what a
 state-conditioned covariance is for.
+
+## Results
+
+Seven measurement models on one interface, evaluated by three experiments
+that each isolate a single mechanism. Organising by mechanism rather than by
+scenario is deliberate: the question is which component earns its compute, and
+only a design that varies one thing at a time can answer it.
+
+**Healthy, correctly calibrated.** Twenty runs, every arm given the best
+constant covariance available to it.
+
+| | speed, m/s | NIS (want 3 / 6) | NEES (want 2 / 4) |
+|---|---|---|---|
+| analytic + best constant | 0.0052 | 2.52 / 4.31 | 1.81 / 3.37 |
+| plain network | 0.0056 | 2.52 / 4.34 | 1.99 / 4.12 |
+| residual network | 0.0087 | 2.51 / 4.30 | 3.26 / 12.16 |
+| adaptive covariance | 0.0052 | 2.96 / 6.00 | 2.66 / 8.37 |
+| Gaussian process | 0.0061 | 2.48 / 4.09 | 2.41 / 6.27 |
+| heteroscedastic | 0.0055 | 2.49 / 4.26 | 1.83 / 3.53 |
+| ensemble of five | 0.0053 | 2.44 / 4.10 | 1.70 / 3.07 |
+
+No learned arm beats the analytic model here, and two lose measurably on a
+paired run-by-run comparison. This is the control condition rather than a
+result: the simulator generates readings from the same equations the analytic
+model uses, so that model is not an approximation of the truth but the truth
+itself, and nothing fitted from data can do better than tie. Every argument
+for a learned model lives in the conditions where that assumption fails.
+
+**Test 1, is the map right?** Wheel radius made to differ from the value the
+analytic model was built with, which is the ordinary condition of hardware.
+
+| radius error | analytic | plain | heteroscedastic |
+|---|---|---|---|
+| 0% | 0.0052 | 0.0063 | 0.0087 |
+| 1% | 0.0114 | 0.0066 | 0.0074 |
+| 3% | 0.0309 | 0.0057 | 0.0080 |
+
+The crossover is below one per cent, and by three per cent the analytic
+model's NEES reaches 30.3 while the learned arms are unmoved. A learned map
+is not better because it is more expressive; it is better because it fits the
+vehicle that exists rather than the one that was written down. The two
+learned arms move together, so this argues for learning the map and not for
+learning the noise — which is why the plain arm is present.
+
+**Test 2, is the noise structure right?** Sensor noise growth swept from zero,
+where a single constant is provably optimal, upward.
+
+| variation | constant, NIS variance | heteroscedastic, NIS variance |
+|---|---|---|
+| 0% | 5.65 | 5.04 |
+| 36% | 6.02 | 5.81 |
+| 108% | 6.81 | 6.36 |
+| 234% | 8.16 | 6.74 |
+
+Target is 6.0. The constant's second moment degrades by 44% across the sweep
+and the learned covariance by 34%, staying nearer target throughout. The
+effect is real and confined to the second moment; on accuracy the analytic
+model leads at every level. The homoscedastic row is included because it is
+where the method should fail, and a sweep reported only where it succeeds
+would be a knob turned to suit a conclusion.
+
+**Test 3, do you know what you do not know?** Trained on a restricted
+envelope, evaluated on the full range, with healthy sensors throughout — so
+anything unfamiliar is unfamiliar rather than broken.
+
+| | speed outside | NIS outside | novelty ratio | cost |
+|---|---|---|---|---|
+| heteroscedastic | 0.099 | 3.26 | — | 1× |
+| + Laplace | 0.099 | 2.83 | 99× | 1× |
+| ensemble of five | 0.043 | 1.37 | 121× | 5× |
+
+Target NIS is 3.0. The Laplace posterior gives the best-calibrated
+innovations outside the training envelope, and does so at a single forward
+pass; the ensemble over-inflates its covariance and becomes under-confident.
+Novelty detection is equivalent between them, so the five-fold cost buys no
+additional discrimination. What it does buy is accuracy — averaging five
+means is more than twice as good where the model extrapolates, which is an
+argument for ensembles that has nothing to do with uncertainty.
+
+NEES outside the envelope is poor for all three. The epistemic term keeps
+innovations honest without making the state estimate correct: knowing that
+one is guessing is not the same as guessing well.
+
+**What is not yet measured.** Faults reach the filter through the
+measurement, while every learned arm takes the state as its input, so a
+degraded sensor leaves their predictions unchanged — confirmed directly, with
+the learned covariance flat across a fourfold change in true noise while the
+adaptive arm tracked it to within five per cent. Closing that requires health
+in the state, which requires training data with graded fault severities.
+Until then the fault results describe the classical baseline only.
 
 ## References
 
@@ -455,6 +601,11 @@ Auto-Tuning With Consistent and Robust Bayesian Optimization," *IEEE
 Transactions on Aerospace and Electronic Systems*, vol. 60, no. 2,
 pp. 2236–2250, 2024.
 [doi:10.1109/TAES.2024.3350587](https://doi.org/10.1109/taes.2024.3350587)
+
+[17] K. J. DeMars, R. H. Bishop, and M. K. Jah, "Entropy-Based Approach for
+Uncertainty Propagation of Nonlinear Dynamical Systems," *Journal of
+Guidance, Control, and Dynamics*, vol. 36, no. 4, pp. 1047–1057, 2013.
+[doi:10.2514/1.58987](https://doi.org/10.2514/1.58987)
 
 [13] B. W. Israelsen, N. R. Ahmed, M. Aitken, E. W. Frew, D. A. Lawrence, and
 B. M. Argrow, "'A Good Bot Always Knows Its Limitations': Assessing Autonomous
