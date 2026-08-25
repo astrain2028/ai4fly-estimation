@@ -44,13 +44,16 @@ TESTS = [
     "models/bhr/measurement.py",
     "models/gp/measurement.py",
     "models/ensemble/measurement.py",
+    "models/health/measurement.py",
 ]
 
 # Minutes each, and they retrain models or sweep parameters. Worth running
 # deliberately, not on every check.
 SLOW = [
     "robot/make_dataset.py",
+    "robot/make_faulted.py",
     "models/bhr/laplace.py",
+    "models/health/train.py",
     "experiments/healthy.py",
     "experiments/degradation.py",
     "experiments/calibration.py",

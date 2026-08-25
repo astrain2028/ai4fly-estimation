@@ -95,11 +95,20 @@ def move_state(state, dt):
     here: it changes by about 2 per cent of its own spread per step. So it is
     the right place to put the process noise.
     """
-    x, y, heading, speed, turn_rate, accel, turn_accel = state
+    x, y, heading, speed, turn_rate, accel, turn_accel = state[:7]
     moved = step(np.array([x, y, heading]), speed, turn_rate, dt)
-    return np.array([moved[0], moved[1], moved[2],
-                     speed + accel * dt, turn_rate + turn_accel * dt,
-                     accel, turn_accel])
+    forward = np.array([moved[0], moved[1], moved[2],
+                        speed + accel * dt, turn_rate + turn_accel * dt,
+                        accel, turn_accel])
+
+    # Anything past the seventh entry is sensor health, and it is carried
+    # forward untouched. Health has no dynamics: a sensor does not get better
+    # or worse because time passed, only because evidence arrived. Leaving it
+    # alone in the prediction puts the entire burden of estimating it on the
+    # measurement model, which is where it belongs.
+    if len(state) > 7:
+        return np.concatenate([forward, state[7:]])
+    return forward
 
 
 def expected_readings(states):

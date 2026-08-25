@@ -51,7 +51,7 @@ COLUMNS = ["run", "t", "x", "y", "heading", "speed", "turn_rate",
 
 def build(encoder_growth=None, gyro_growth=None, n_runs=N_RUNS,
           duration=DURATION, ticks=None, radius_error=None,
-          width_error=None):
+          width_error=None, first_run=0):
     """Generate the dataset as a DataFrame.
 
     encoder_growth -- extra encoder noise per rad/s of wheel spin.
@@ -69,6 +69,10 @@ def build(encoder_growth=None, gyro_growth=None, n_runs=N_RUNS,
                       which is the normal condition on real hardware and the
                       one this simulation otherwise fails to represent.
     width_error    -- the same, for track width.
+    first_run      -- which run index to start from. The index seeds both
+                      the trajectory and the noise, so callers building a
+                      dataset one run at a time must advance it or every
+                      run comes out identical.
 
     These live as module-level constants in sensors.py and dynamics.py, so
     they are set around the call and put back afterwards. Not elegant, but it
@@ -91,7 +95,7 @@ def build(encoder_growth=None, gyro_growth=None, n_runs=N_RUNS,
 
     try:
         frames = []
-        for run_id in range(n_runs):
+        for run_id in range(first_run, first_run + n_runs):
             run = random_run(run_id, duration=duration)
             meas = sensors.read_sensors(run, seed=run_id, dt=DT)
             frames.append(pd.DataFrame({
