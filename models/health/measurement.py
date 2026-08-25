@@ -56,6 +56,35 @@ TAKE = [0, 1, 2, 3, 4, 7, 8, 9]
 N_STATES = 10
 HEALTH_STATES = [7, 8, 9]
 
+# How freely the filter may move its health estimate, and how unsure it is
+# about health before any measurement arrives. Both were searched, and both
+# matter more than they look.
+#
+# Three sensors constrain two quantities, so at any single instant there are
+# not enough measurements to pin down three health levels as well. What makes
+# health identifiable at all is that it stays put while the vehicle moves, so
+# evidence accumulates. Process noise large enough to let health chase the
+# residual of the moment destroys that: at 1e-3 the estimate wanders and the
+# blame smears across channels. At 1e-6 it has to earn its position.
+#
+# The starting spread does the same thing at the other end. Beginning at 1.0
+# lets the first few updates make large, badly-informed corrections that the
+# rest of the run never fully undoes -- cross-channel error of 4.2 against
+# 0.9 when starting at 0.1.
+HEALTH_PROCESS_NOISE = 1e-6
+HEALTH_START_SPREAD = 0.1
+
+
+def filter_settings(Q7, P7):
+    """Widen a seven-state Q and P0 to carry health as well."""
+    Q10 = np.zeros((N_STATES, N_STATES))
+    P10 = np.zeros((N_STATES, N_STATES))
+    Q10[:7, :7], P10[:7, :7] = Q7, P7
+    for i in HEALTH_STATES:
+        Q10[i, i] = HEALTH_PROCESS_NOISE
+        P10[i, i] = HEALTH_START_SPREAD
+    return Q10, P10
+
 
 def load_measurement_model(path=None):
     """Load the trained model and return a function the filter can call.
@@ -94,6 +123,21 @@ def load_measurement_model(path=None):
             R[k] = np.diag(variances[k])
         return readings, R
 
+    def constrain(mean):
+        """Keep health non-negative, which the filter calls after each update.
+
+        Clipping the model's input is not enough on its own. If the estimate
+        itself is allowed below zero, the region under zero costs nothing --
+        the model returns the same prediction for m = -0.5 as for m = 0 -- so
+        an update can move there freely while still soaking up correction
+        that belonged elsewhere. Measured without this, a filter watching
+        three healthy sensors settled at m = -0.21 rather than 0.
+        """
+        mean = np.array(mean, dtype=float)
+        mean[HEALTH_STATES] = np.maximum(mean[HEALTH_STATES], 0.0)
+        return mean
+
+    measure.constrain = constrain
     return measure
 
 
@@ -108,18 +152,7 @@ if __name__ == "__main__":
 
     measure = load_measurement_model()
 
-    # The filter's settings, widened for health. Health gets a small process
-    # noise so the estimate can move at all, and a generous starting spread
-    # because nothing is known about it before any measurement arrives.
-    Q10 = np.zeros((N_STATES, N_STATES))
-    Q10[:7, :7] = Q
-    for i in HEALTH_STATES:
-        Q10[i, i] = 1e-4
-    P10 = np.zeros((N_STATES, N_STATES))
-    P10[:7, :7] = P0
-    for i in HEALTH_STATES:
-        P10[i, i] = 1.0
-
+    Q10, P10 = filter_settings(Q, P0)
     R_const = best_constant_R()
 
     print("CAN THE FILTER ESTIMATE HEALTH?\n")

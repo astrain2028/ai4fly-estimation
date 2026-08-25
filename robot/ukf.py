@@ -232,6 +232,20 @@ class UKF:
             if hasattr(self.measure, "observe"):
                 self.measure.observe(innovation, S)
 
+            # Some states cannot take every value a Gaussian would allow. A
+            # sensor's degradation cannot be negative, and if the model
+            # ignores negative health -- which it must, having never been
+            # shown any -- then moving there costs the filter nothing in
+            # innovation while still absorbing correction. That is a free
+            # direction, and an unconstrained update will use it.
+            #
+            # Projecting back onto the allowed set after each update is not
+            # exact Bayesian inference, but the alternative is an estimate
+            # that drifts into a region where the measurement model is not
+            # defined.
+            if hasattr(self.measure, "constrain"):
+                mean = self.measure.constrain(mean)
+
             means[k] = mean
             covs[k] = cov
             innovations[k] = innovation
