@@ -84,56 +84,30 @@ def load_measurement_model(path=str(Path(__file__).parent / "baseline_model.pt")
 
 
 if __name__ == "__main__":
-    import time
-    from trajectories import DT, random_run
-    from sensors import read_sensors
-    from ukf import UKF, expected_readings, nis
-    from scipy.stats import chi2
+    sys.path.insert(0, str(ROOT / "experiments"))
+    from common import (N_RUNS, NIS_DOF, NEES_DOF, best_constant_R, gather,
+                        load_arm)
 
-    learned = load_measurement_model()
+    # The best single covariance available, which is the average variance.
+    # Every arm without its own covariance gets this one, so the numbers in
+    # these blocks can honestly be compared with each other.
+    R = best_constant_R()
 
-    print("Does the learned model agree with the real formula?")
-    run = random_run(seed=0, duration=20.0)
-    states = np.column_stack([run["x"], run["y"], run["heading"],
-                              run["speed"], run["turn_rate"]])
-    exact = expected_readings(states)
-    guess = learned(states)
-    for i, name in enumerate(["left encoder", "right encoder", "gyro"]):
-        print("   %-14s differs by %.4f rad/s"
-              % (name, np.sqrt(np.mean((guess[:, i] - exact[:, i]) ** 2))))
+    print("Learned mean against the hand-written one, %d runs." % N_RUNS)
+    print()
+    print("%-24s %9s %9s %9s %9s"
+          % ("", "speed", "turn", "NIS", "NEES"))
+    for label, name in [("written by hand", "fixed"), ("learned network", "plain")]:
+        r = gather(load_arm(name), range(N_RUNS), R=R)
+        print("%-24s %9.4f %9.4f %9.3f %9.3f"
+              % (label, r["speed_rmse"].mean(),
+                 r["turn_rmse"].mean(), r["nis"].mean(),
+                 r["nees"].mean()))
+    print("%-24s %9s %9s %9.1f %9.1f"
+          % ("should be", "", "", float(NIS_DOF), float(NEES_DOF)))
 
-    # ---- run the filter both ways ----
-    meas = read_sensors(run, seed=0, dt=DT)
-    readings = np.column_stack([meas["left_encoder"],
-                                meas["right_encoder"],
-                                meas["gyro"]])
-
-    Q = np.diag([1e-9, 1e-9, 1e-9, 2e-5, 1e-4])
-    R = np.diag([0.15 ** 2, 0.15 ** 2, 0.011 ** 2])
-    start_mean = np.array([0.0, 0.0, 0.0, run["speed"][0], run["turn_rate"][0]])
-    start_cov = np.diag([0.01, 0.01, 0.01, 0.10, 0.10])
-
-    lo, hi = chi2.ppf(0.025, 3), chi2.ppf(0.975, 3)
-
-    print("\n%-22s %10s %10s %9s %9s %8s"
-          % ("measurement model", "speed err", "turn err", "mean NIS",
-             "in bounds", "seconds"))
-    for label, h in [("written by hand", expected_readings),
-                     ("learned network", learned)]:
-        t0 = time.time()
-        means, covs, innov, S = UKF(Q, R, measure=h).run(
-            readings, start_mean, start_cov, DT)
-        elapsed = time.time() - t0
-
-        v = nis(innov, S)
-        print("%-22s %10.4f %10.4f %9.2f %9.2f %8.1f"
-              % (label,
-                 np.sqrt(np.mean((means[:, 3] - run["speed"]) ** 2)),
-                 np.sqrt(np.mean((means[:, 4] - run["turn_rate"]) ** 2)),
-                 v.mean(),
-                 np.mean((v >= lo) & (v <= hi)),
-                 elapsed))
-
-    print("\nThe learned model still outputs one number per sensor and says")
-    print("nothing about how noisy that reading should be, so R is still a")
-    print("fixed matrix chosen by hand. Replacing that is the next step.")
+    print()
+    print("The hand-written model is the function the simulator itself")
+    print("uses, so it is not an approximation of the truth -- it is the")
+    print("truth. A learned mean can tie it at best. What a learned model")
+    print("can offer instead is a covariance, and this arm has none.")

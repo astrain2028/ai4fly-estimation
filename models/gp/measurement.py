@@ -10,16 +10,25 @@ every stored point, so the work per call grows with how many points were
 kept -- and it grows as the square, because the comparison feeds a
 triangular solve.
 
-Measured, with 1500 stored points: 22.6 ms per filter step, against the 20 ms
-available at 50 Hz. Just over, and the only arm here that misses the budget
-at all -- the network models run in about 1 ms. Keeping fewer points would
-fit, at the cost of accuracy, which is a trade the network models never face:
-their cost is set by their shape, not by how much data they were trained on.
+With 1500 stored points this arm has been timed at 23, 29, 96 and 567 ms per
+filter step on the same machine, against the 20 ms available at 50 Hz. That
+spread is not a mistake in the timing -- the reported figure tracks wall clock
+to within one per cent -- it is the arm itself, whose large matrix work
+competes for memory bandwidth in a way the small networks do not. Those run at
+about 1 ms and vary by a few per cent.
 
-That number is 243 times better than it was before this file used a
-triangular solve, and the story is worth keeping. Cost is a property of the
-implementation until proven otherwise, and "this method is too slow" is a
-claim that needs a profiler behind it.
+So the honest statement is that the GP misses a 50 Hz budget by somewhere
+between a little and a lot, and that no single number should be quoted for it
+without a benchmark that controls for machine load. Keeping fewer points would
+fit, at the cost of accuracy -- a trade the network models never face, since
+their cost is set by their shape rather than by how much data they saw.
+
+Even the worst of those figures is far better than before this file used a
+triangular solve, and that story is worth keeping. The predictive variance was
+being solved against a Cholesky factor with a general solver, refactorising a
+1500x1500 matrix on every sigma point of every step, for a measured 243-fold
+penalty. Cost is a property of the implementation until proven otherwise, and
+"this method is too slow" is a claim that needs a profiler behind it.
 """
 
 import sys
@@ -112,43 +121,35 @@ def load_measurement_model(path=None):
 
 
 if __name__ == "__main__":
-    import time
-    from trajectories import DT, random_run
-    from sensors import read_sensors
-    from ukf import UKF, expected_readings, nis
+    sys.path.insert(0, str(ROOT / "experiments"))
+    from common import (N_RUNS, NIS_DOF, NEES_DOF, best_constant_R, gather,
+                        load_arm)
 
-    gp_measure = load_measurement_model()
-    Q = np.diag([1e-9, 1e-9, 1e-9, 2e-5, 1e-4])
-    fixed_R = np.diag([0.1805 ** 2, 0.1708 ** 2, 0.00799 ** 2])
+    # The best single covariance available, which is the average variance.
+    # Every arm without its own covariance gets this one, so the numbers in
+    # these blocks can honestly be compared with each other.
+    R = best_constant_R()
 
-    # A short run: the GP is slow enough that a full-length one is painful.
-    run = random_run(0, duration=2.0)
-    meas = read_sensors(run, seed=0, dt=DT)
-    readings = np.column_stack([meas["left_encoder"], meas["right_encoder"],
-                                meas["gyro"]])
-    truth = np.column_stack([run["x"], run["y"], run["heading"],
-                             run["speed"], run["turn_rate"]])
-    start_cov = np.diag([0.01, 0.01, 0.01, 0.10, 0.10])
+    print("Gaussian process against the hand-written model, %d runs."
+          % N_RUNS)
+    print()
+    print("%-24s %9s %9s %9s %9s %10s"
+          % ("", "speed", "turn", "NIS", "NEES", "ms/step"))
+    for label, name in [("written by hand", "fixed"),
+                        ("Gaussian process", "gp")]:
+        r = gather(load_arm(name), range(N_RUNS), R=R)
+        print("%-24s %9.4f %9.4f %9.3f %9.3f %10.2f"
+              % (label, r["speed_rmse"].mean(),
+                 r["turn_rmse"].mean(), r["nis"].mean(),
+                 r["nees"].mean(), r["ms_per_step"]))
+    print("%-24s %9s %9s %9.1f %9.1f"
+          % ("should be", "", "", float(NIS_DOF), float(NEES_DOF)))
 
-    print("Two seconds of filtering, %d steps.\n" % len(readings))
-    print("%-26s %10s %10s %9s %10s"
-          % ("", "speed err", "turn err", "NIS", "seconds"))
-
-    for label, fn, R in [("written by hand", expected_readings, fixed_R),
-                         ("Gaussian process", gp_measure, fixed_R)]:
-        t0 = time.time()
-        means, covs, innov, S = UKF(Q, R, measure=fn).run(
-            readings, truth[0].copy(), start_cov, DT)
-        elapsed = time.time() - t0
-        print("%-26s %10.4f %10.4f %9.3f %10.1f"
-              % (label,
-                 np.sqrt(np.mean((means[:, 3] - run["speed"]) ** 2)),
-                 np.sqrt(np.mean((means[:, 4] - run["turn_rate"]) ** 2)),
-                 nis(innov, S).mean(), elapsed))
-
-    per_step = elapsed / len(readings) * 1000
-    print("\n   %.0f ms per filter step, against %.0f ms available at 50 Hz."
-          % (per_step, 1000 * DT))
-    print("   That is %.0f times over budget. Keeping fewer points would fit,"
-          % (per_step / (1000 * DT)))
-    print("   at the cost of accuracy -- a trade the network models never face.")
+    print()
+    print("Timing is wall clock on a shared machine and moves around a")
+    print("great deal between runs. Treat it as an order of magnitude:")
+    print("a real benchmark needs warmup and repeats.")
+    print()
+    print("The GP gets epistemic uncertainty free from its kernel, and")
+    print("pays by comparing every query against every stored point. Its")
+    print("noise term is one constant, so it does half of what is needed.")

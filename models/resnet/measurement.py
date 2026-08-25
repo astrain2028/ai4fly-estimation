@@ -81,66 +81,41 @@ def load_measurement_model(path=None):
 
 
 if __name__ == "__main__":
-    import time
-    import importlib.util
-    from trajectories import DT, random_run
-    from sensors import read_sensors
-    from ukf import UKF, expected_readings, nis
+    sys.path.insert(0, str(ROOT / "experiments"))
+    from common import (N_RUNS, NIS_DOF, NEES_DOF, best_constant_R, gather,
+                        load_arm)
 
-    def load_arm(name):
-        """Load another arm's measurement.py, by path, for comparison."""
-        spec = importlib.util.spec_from_file_location(
-            name + "_measurement",
-            Path(__file__).resolve().parents[1] / name / "measurement.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module.load_measurement_model()
+    # The best single covariance available, which is the average variance.
+    # Every arm without its own covariance gets this one, so the numbers in
+    # these blocks can honestly be compared with each other.
+    R = best_constant_R()
 
-    deep = load_measurement_model()
-    plain = load_arm("plain")
-
-    Q = np.diag([1e-9, 1e-9, 1e-9, 2e-5, 1e-4])
-    R = np.diag([0.1805 ** 2, 0.1708 ** 2, 0.00799 ** 2])
-    start_cov = np.diag([0.01, 0.01, 0.01, 0.10, 0.10])
-
-    print("Filtering twenty runs. Depth is the only difference.\n")
-    print("%-24s %10s %10s %9s %9s"
-          % ("", "speed err", "turn err", "mean NIS", "seconds"))
-
+    print("Depth is the only difference, %d runs." % N_RUNS)
+    print()
+    print("%-24s %9s %9s %9s %9s"
+          % ("", "speed", "turn", "NIS", "NEES"))
     scores = {}
-    for label, h in [("written by hand", expected_readings),
-                     ("plain network", plain),
-                     ("residual network", deep)]:
-        speed_err, turn_err, nis_all = [], [], []
-        t0 = time.time()
-        for seed in range(20):
-            run = random_run(seed, duration=20.0)
-            meas = read_sensors(run, seed=seed, dt=DT)
-            readings = np.column_stack([meas["left_encoder"],
-                                        meas["right_encoder"],
-                                        meas["gyro"]])
-            truth = np.column_stack([run["x"], run["y"], run["heading"],
-                                     run["speed"], run["turn_rate"]])
+    for label, name in [("written by hand", "fixed"),
+                        ("plain network", "plain"),
+                        ("residual network", "resnet")]:
+        r = gather(load_arm(name), range(N_RUNS), R=R)
+        scores[name] = r
+        print("%-24s %9.4f %9.4f %9.3f %9.3f"
+              % (label, r["speed_rmse"].mean(),
+                 r["turn_rmse"].mean(), r["nis"].mean(),
+                 r["nees"].mean()))
+    print("%-24s %9s %9s %9.1f %9.1f"
+          % ("should be", "", "", float(NIS_DOF), float(NEES_DOF)))
 
-            means, covs, innov, S = UKF(Q, R, measure=h).run(
-                readings, truth[0].copy(), start_cov, DT)
-
-            speed_err.append(np.sqrt(np.mean((means[:, 3] - run["speed"]) ** 2)))
-            turn_err.append(np.sqrt(np.mean((means[:, 4] - run["turn_rate"]) ** 2)))
-            nis_all.append(nis(innov, S))
-        elapsed = time.time() - t0
-
-        scores[label] = (np.array(speed_err), np.array(turn_err))
-        print("%-24s %10.4f %10.4f %9.3f %9.1f"
-              % (label, np.mean(speed_err), np.mean(turn_err),
-                 np.concatenate(nis_all).mean(), elapsed))
-
-    print("%-24s %10s %10s %9.1f" % ("should be", "", "", 3.0))
-
-    # Same twenty runs went through both networks, so compare them run by
-    # run. A mean difference smaller than its own spread is not a result.
-    print("\nResidual minus plain, run by run:")
-    for i, name in enumerate(["speed", "turn "]):
-        diff = scores["residual network"][i] - scores["plain network"][i]
-        print("  %s  deeper wins %2d of 20   mean %+.5f   spread %.5f"
-              % (name, np.sum(diff < 0), diff.mean(), diff.std()))
+    # Same runs through both networks, so compare run by run. A mean
+    # difference smaller than its own spread is not a result.
+    print()
+    print("Residual minus plain, run by run:")
+    for key, name in [("speed_rmse", "speed"), ("turn_rmse", "turn ")]:
+        diff = scores["resnet"][key] - scores["plain"][key]
+        print("  %s  deeper wins %2d of %d   mean %+.5f   spread %.5f"
+              % (name, int((diff < 0).sum()), len(diff),
+                 diff.mean(), diff.std()))
+    print()
+    print("Depth was not the limit. That is the answer this arm was")
+    print("built for, and it is a negative one.")

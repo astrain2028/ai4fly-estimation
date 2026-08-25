@@ -121,48 +121,32 @@ def load_measurement_model(path=None, use_laplace=True):
 
 
 if __name__ == "__main__":
-    from scipy.stats import chi2
-    from trajectories import DT, random_run
-    from sensors import read_sensors
-    from ukf import UKF, expected_readings, nis, nees, print_consistency
+    sys.path.insert(0, str(ROOT / "experiments"))
+    from common import (N_RUNS, NIS_DOF, NEES_DOF, best_constant_R, gather,
+                        load_arm)
 
-    learned = load_measurement_model()
-    Q = np.diag([1e-9, 1e-9, 1e-9, 2e-5, 1e-4])
-    fixed_R = np.diag([0.1805 ** 2, 0.1708 ** 2, 0.00799 ** 2])
+    # The best single covariance available, which is the average variance.
+    # Every arm without its own covariance gets this one, so the numbers in
+    # these blocks can honestly be compared with each other.
+    R = best_constant_R()
 
-    print("Filtering twenty runs, hand-written model against learned.\n")
-    print("%-28s %9s %9s %9s %9s"
-          % ("", "speed err", "turn err", "NIS", "NIS var"))
+    measure = load_measurement_model()
+    print("Heteroscedastic model, Laplace %s, %d runs."
+          % ("fitted" if measure.has_laplace else "NOT fitted", N_RUNS))
+    print()
+    print("%-24s %9s %9s %9s %9s"
+          % ("", "speed", "turn", "NIS", "NEES"))
+    for label, name in [("written by hand", "fixed"), ("heteroscedastic", "bhr")]:
+        r = gather(load_arm(name), range(N_RUNS), R=R)
+        print("%-24s %9.4f %9.4f %9.3f %9.3f"
+              % (label, r["speed_rmse"].mean(),
+                 r["turn_rmse"].mean(), r["nis"].mean(),
+                 r["nees"].mean()))
+    print("%-24s %9s %9s %9.1f %9.1f"
+          % ("should be", "", "", float(NIS_DOF), float(NEES_DOF)))
 
-    def run_all(label, measure_fn, R):
-        nis_all, speed_err, turn_err = [], [], []
-        for seed in range(20):
-            run = random_run(seed, duration=20.0)
-            meas = read_sensors(run, seed=seed, dt=DT)
-            readings = np.column_stack([meas["left_encoder"],
-                                        meas["right_encoder"],
-                                        meas["gyro"]])
-            truth = np.column_stack([run["x"], run["y"], run["heading"],
-                                     run["speed"], run["turn_rate"]])
-            start_cov = np.diag([0.01, 0.01, 0.01, 0.10, 0.10])
-
-            means, covs, innov, S = UKF(Q, R, measure=measure_fn).run(
-                readings, truth[0].copy(), start_cov, DT)
-
-            nis_all.append(nis(innov, S))
-            speed_err.append(np.sqrt(np.mean((means[:, 3] - run["speed"]) ** 2)))
-            turn_err.append(np.sqrt(np.mean((means[:, 4] - run["turn_rate"]) ** 2)))
-
-        v = np.concatenate(nis_all)
-        print("%-28s %9.4f %9.4f %9.3f %9.3f"
-              % (label, np.mean(speed_err), np.mean(turn_err), v.mean(), v.var()))
-        return v
-
-    run_all("written by hand, fixed R", expected_readings, fixed_R)
-    run_all("learned mean and noise", learned, fixed_R)
-
-    print("%-28s %9s %9s %9.1f %9.1f" % ("should be", "", "", 3.0, 6.0))
-
-    print("\nThe fixed R above was tuned by hand until the filter was")
-    print("consistent. The learned one was never tuned -- it comes straight")
-    print("from the model, and changes at every step.")
+    print()
+    print("The covariance here is never tuned -- it comes from the model")
+    print("and changes at every step. On healthy, correctly calibrated")
+    print("data that buys nothing over the best constant, which is what R")
+    print("above is. Where it earns its keep is measured in experiments/.")
