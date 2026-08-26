@@ -51,6 +51,21 @@ Q = np.diag([1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-3, 1e-1])
 # without its own covariance is allowed to use.
 R_TUNED = np.diag([0.1805 ** 2, 0.1708 ** 2, 0.00799 ** 2])
 
+# The best constant covariance is not quite the sensors' average variance.
+# tune.py searched for it against Chen's C_NIS / C_NEES and came back with
+# 0.85 of that average, which brings all four consistency moments to target
+# together: NIS 2.94 / 5.91 and NEES 2.13 / 4.63, against 3 / 6 and 2 / 4.
+#
+# The direction makes sense. The filter's own state uncertainty already
+# explains part of the innovation spread, so R has less to account for than
+# the raw sensor noise. The hand-tuned R_TUNED above erred the other way, and
+# for the same reason: it was fitted to absorb whatever the wrong process
+# model left over, and came out larger than the sensors are.
+#
+# Fitted on twenty runs, and Chen et al. are explicit that these statistics
+# are noisy at that sample size. Treat 0.85 as approximate.
+R_SCALE = 0.85
+
 # How unsure the filter is at the start. The accelerations begin unknown, so
 # their entries are the spread of the true accelerations across runs.
 P0 = np.diag([0.01, 0.01, 0.01, 0.10, 0.10, 0.04, 0.04])
@@ -237,11 +252,12 @@ def best_constant_R(frame=None):
         frame = pd.read_csv(ROOT / "data" / "robot_data.csv")
     tick = (2 * np.pi / TICKS_PER_TURN) / DT
     quant = tick ** 2 / 12
-    return np.diag([
+    average = np.diag([
         frame["left_noise"].pow(2).mean() + quant,
         frame["right_noise"].pow(2).mean() + quant,
         frame["gyro_noise"].pow(2).mean() + frame["gyro_bias"].var(),
     ])
+    return R_SCALE * average
 
 
 def two_moment(values, dof):
