@@ -103,7 +103,8 @@ def run_filter(measure, meas, run, wide, R):
     if wide:
         Q_use, P_use = health_arm.filter_settings(Q, P0)
         start = np.zeros(health_arm.N_STATES)
-        truth = np.column_stack([truth, np.zeros((len(truth), 3))])
+        truth = np.column_stack(
+            [truth, np.zeros((len(truth), health_arm.N_STATES - 7))])
     else:
         Q_use, P_use = Q, P0
         start = np.zeros(7)
