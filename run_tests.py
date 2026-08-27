@@ -59,6 +59,7 @@ SLOW = [
     "experiments/calibration.py",
     "experiments/heteroscedasticity.py",
     "experiments/envelope.py",
+    "experiments/health_value.py",
     "experiments/tune.py",
 ]
 
