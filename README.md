@@ -27,8 +27,24 @@ sensor.
 The continuous parameterisation is deliberate. A Gaussian filter propagates
 means and covariances, so a discrete mode variable is not something it can
 represent — estimating one requires a multiple-model or particle formulation,
-a different architecture with different cost. A continuous health variable is
-a quantity the filter can carry natively, and it admits partial degradation,
+a different architecture with different cost. The established form of that
+architecture is multiple-model adaptive estimation: a bank of filters running
+in parallel, one per failure hypothesis, blended by posterior probability.
+Maybeck [20] applies it to sensor and actuator failures in aircraft flight
+control; Hanlon and Maybeck [21] refine the hypothesis test to use the
+correlation of the residual rather than its magnitude.
+
+Two things follow from that comparison, and both bear on the compute
+constraint this project works under. A bank needs one hypothesis per fault,
+and six degradation modes across three channels at continuous severity has no
+finite bank. And a bank costs N filters, where augmenting health into the
+state costs one wider filter: sigma points scale as 2n+1, so seven states to
+thirteen is fifteen points to twenty-seven, under a factor of two. Against a
+bank of even a dozen hypotheses that is an order of magnitude, which is the
+difference between fitting the 20 ms available at 50 Hz and not.
+
+A continuous health variable is also a quantity the filter can carry
+natively, and it admits partial degradation,
 which is what most real faults look like before they become total. Detection
 is consequently a regression problem throughout: the network predicts
 continuous measurement values, and the filter estimates a continuous health
@@ -92,6 +108,37 @@ misspecified model — both inflate residuals identically. Conditioning on
 health acts earlier, on information available before a residual exists, at
 the cost of requiring that the relevant fault mode was represented during
 training.
+
+## Sensor health as an estimated state
+
+Carrying a fault as an extra state entry and estimating it jointly with the
+vehicle is a standard construction in fault detection and isolation rather
+than a new one, and this project leans on that instead of defending it.
+Willsky [18] surveys the field's two classical families: tests on the
+innovation sequence, and augmentation of the fault into the estimated state.
+Mehra and Peschon [19] give the innovation-based form, which is what
+`models/adaptive` implements as a baseline here. On the augmentation side,
+Ben Hmida et al. [22] estimate state and fault together for linear stochastic
+systems by stacking both into one vector, which is what the thirteen-state
+filter in `models/health` does. The most familiar special case is inertial
+navigation, where accelerometer and gyroscope biases are routinely carried as
+filter states and estimated online; the `severity_bias_*` entries here
+generalise that past a constant additive offset.
+
+What none of that work shares is how the fault enters the measurement. In the
+classical formulation it enters analytically, and usually linearly, as
+`z = h(x) + f`. Here it enters through a learned function. That is the part
+which has to be argued for rather than cited.
+
+The difference carries a cost, and it is one a learned fault model has to be
+tested for rather than assumed past. A learned health model has seen
+particular degradations and has no basis for one outside that set, whereas
+covariance matching does not know what a fault is and so reacts to any of
+them alike. Tian et al. [23] report the same tension in multimodal
+segmentation, weighting modalities by estimated uncertainty specifically so
+that degradations absent from training are still downweighted. The
+corresponding test here is to train on a subset of the fault modes and score
+the learned and classical arms against each other on the modes held out.
 
 ## Learned measurement models
 
@@ -537,6 +584,31 @@ Filtering," *IEEE Transactions on Automatic Control*, vol. 15, no. 2,
 pp. 175–184, 1970.
 [doi:10.1109/TAC.1970.1099422](https://doi.org/10.1109/TAC.1970.1099422)
 
+**Fault detection and health estimation**
+
+[18] A. S. Willsky, "A Survey of Design Methods for Failure Detection in
+Dynamic Systems," *Automatica*, vol. 12, no. 6, pp. 601–611, 1976.
+[doi:10.1016/0005-1098(76)90041-8](https://doi.org/10.1016/0005-1098(76)90041-8)
+
+[19] R. K. Mehra and J. Peschon, "An Innovations Approach to Fault Detection
+and Diagnosis in Dynamic Systems," *Automatica*, vol. 7, no. 5, pp. 637–640,
+1971.
+[doi:10.1016/0005-1098(71)90028-8](https://doi.org/10.1016/0005-1098(71)90028-8)
+
+[20] P. S. Maybeck, "Multiple Model Adaptive Algorithms for Detecting and
+Compensating Sensor and Actuator/Surface Failures in Aircraft Flight Control
+Systems," *International Journal of Robust and Nonlinear Control*, vol. 9,
+no. 14, 1999.
+
+[21] P. D. Hanlon and P. S. Maybeck, "Multiple-Model Adaptive Estimation
+Using a Residual Correlation Kalman Filter Bank," *IEEE Transactions on
+Aerospace and Electronic Systems*, vol. 36, no. 2, pp. 393–406, 2000.
+[doi:10.1109/7.845216](https://doi.org/10.1109/7.845216)
+
+[22] F. Ben Hmida, K. Khemiri, J. Ragot, and M. Gossa, "Three-stage Kalman
+Filter for State and Fault Estimation of Linear Stochastic Systems with
+Unknown Inputs," *Journal of the Franklin Institute*, vol. 349, no. 7, 2012.
+
 **Learned measurement models in filtering**
 
 [3] J. Ko and D. Fox, "GP-BayesFilters: Bayesian Filtering Using Gaussian
@@ -589,6 +661,11 @@ on Learning Representations*, 2017.
 E. Caroselli, F. Kirchner, and A. Fabisch, "Attribution and Uncertainty
 Behavior of Learned Residual Gyro Correction for Gyro-Stellar Estimation,"
 2026. [arXiv:2607.24608](https://arxiv.org/abs/2607.24608)
+
+[23] J. Tian, W. Cheung, N. Glaser, Y.-C. Liu, and Z. Kira, "UNO:
+Uncertainty-aware Noisy-Or Multimodal Fusion for Unanticipated Input
+Degradation," *IEEE International Conference on Robotics and Automation*,
+2020. [arXiv:1911.05611](https://arxiv.org/abs/1911.05611)
 
 **Filter consistency and self-assessment**
 
