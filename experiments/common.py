@@ -93,6 +93,8 @@ ARMS = [
     "gp",          # 5  learned mean, epistemic from the kernel
     "bhr",         # 6  learned mean and state-dependent R
     "ensemble",    # 7  five heteroscedastic models, spread across them
+    "health",      # 8  learned mean and R, conditioned on sensor health
+    "combined",    # 9  the health model with an adaptive multiplier on R
 ]
 
 LABELS = {
@@ -103,6 +105,8 @@ LABELS = {
     "gp": "Gaussian process",
     "bhr": "heteroscedastic",
     "ensemble": "ensemble of 5",
+    "health": "health-conditioned",
+    "combined": "combined",
 }
 
 # Arms too slow to give the full sweep. Experiments cut their run count and
@@ -130,7 +134,17 @@ def load_arm(name):
         "arm_%s_measurement" % name, folder / "measurement.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.load_measurement_model()
+
+    measure = module.load_measurement_model()
+
+    # Arms that carry sensor health need a wider filter than the rest. Rather
+    # than every experiment knowing which those are, the arm says so: if its
+    # module declares N_STATES and filter_settings, they are attached here
+    # and filter_once uses them. Arms that do not are unaffected.
+    if hasattr(module, "N_STATES"):
+        measure.n_states = module.N_STATES
+        measure.filter_settings = module.filter_settings
+    return measure
 
 
 def available(names=None):
@@ -190,9 +204,24 @@ def filter_once(measure, meas, truth, R=R_TUNED):
     if hasattr(measure, "reset"):
         measure.reset()
 
+    # An arm carrying sensor health needs a wider Q, P0 and start vector.
+    # The extra entries are health, which is unknown at the start and has no
+    # true value to score against, so the truth array is padded with zeros --
+    # correct for a healthy run and simply not scored otherwise, since
+    # NEES_STATES only ever asks for speed and turn rate.
+    n_states = getattr(measure, "n_states", 7)
+    if n_states > 7:
+        Q_use, P_use = measure.filter_settings(Q, P0)
+        start = np.zeros(n_states)
+        start[:7] = truth[0, :7]
+        truth = np.column_stack(
+            [truth[:, :7], np.zeros((len(truth), n_states - 7))])
+    else:
+        Q_use, P_use, start = Q, P0, truth[0].copy()
+
     started = time.time()
-    means, covs, innov, S = UKF(Q, R, measure=measure).run(
-        readings, truth[0].copy(), P0, DT)
+    means, covs, innov, S = UKF(Q_use, R, measure=measure).run(
+        readings, start, P_use, DT)
     elapsed = time.time() - started
 
     return {

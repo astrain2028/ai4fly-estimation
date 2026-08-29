@@ -99,15 +99,28 @@ def apply_fault(readings, channel, mode, severity, seed=0, dt=0.02):
     readings -- the dict that read_sensors gave back
     channel  -- which sensor: "left_encoder", "right_encoder" or "gyro"
     mode     -- a key of MODES
-    severity -- 0 is healthy, 1 is trouble the size of the healthy noise
+    severity -- 0 is healthy, 1 is trouble the size of the healthy noise.
+                May be one number for the whole run, or one per sample for a
+                fault that arrives or worsens partway through.
+
+    A per-sample severity works without any change to the fault functions
+    because `bias` and `noise_inflation` are pointwise in it: adding
+    `severity * scale` and drawing from `normal(0, severity * scale)` both
+    broadcast elementwise, and a scale of zero draws zero. `stuck` is the
+    exception -- it reads severity as a fraction of the run rather than as an
+    amount -- and is scalar only.
     """
     if channel not in CHANNELS:
         raise ValueError("unknown channel: %s" % channel)
     if mode not in MODES:
         raise ValueError("unknown mode: %s" % mode)
 
+    severity = np.asarray(severity, dtype=float)
+    if severity.ndim and mode == "stuck":
+        raise ValueError("stuck takes a single severity, not one per sample")
+
     out = dict(readings)
-    if severity > 0:
+    if np.any(severity > 0):
         rng = np.random.default_rng(seed)
         out[channel] = MODES[mode](np.asarray(readings[channel], dtype=float),
                                    severity, REFERENCE[channel], rng, dt)
@@ -116,7 +129,7 @@ def apply_fault(readings, channel, mode, severity, seed=0, dt=0.02):
     # condition a set of readings came from.
     out["fault_channel"] = channel
     out["fault_mode"] = mode
-    out["fault_severity"] = severity
+    out["fault_severity"] = float(severity) if not severity.ndim else severity
     return out
 
 

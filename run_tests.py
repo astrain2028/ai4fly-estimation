@@ -45,6 +45,7 @@ TESTS = [
     "models/gp/measurement.py",
     "models/ensemble/measurement.py",
     "models/health/measurement.py",
+    "models/combined/measurement.py",
 ]
 
 # Minutes each, and they retrain models or sweep parameters. Worth running
@@ -60,6 +61,10 @@ SLOW = [
     "experiments/heteroscedasticity.py",
     "experiments/envelope.py",
     "experiments/health_value.py",
+    "experiments/complementarity.py",
+    "experiments/heldout.py",
+    "experiments/redundancy.py",
+    "experiments/timing.py",
     "experiments/tune.py",
 ]
 

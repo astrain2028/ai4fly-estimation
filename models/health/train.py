@@ -72,7 +72,14 @@ def _bhr():
 bhr = _bhr()
 
 VEHICLE = ["x", "y", "heading", "speed", "turn_rate"]
-HEALTH = ["severity_left", "severity_right", "severity_gyro"]
+
+# Two levels per sensor, not one. A bias wants the model to move h; noise
+# inflation wants it to move R and leave h alone. One number per sensor
+# cannot ask for both, and a model given one learns the average of the two
+# -- correcting 57 per cent of a bias and applying a spurious shift to
+# noise-only faults. See make_faulted.py for the measurement.
+HEALTH = ["severity_bias_left", "severity_bias_right", "severity_bias_gyro",
+          "severity_noise_left", "severity_noise_right", "severity_noise_gyro"]
 INPUTS = VEHICLE + HEALTH
 OUTPUTS = ["left_encoder", "right_encoder", "gyro"]
 
@@ -84,7 +91,7 @@ HIDDEN = 64
 
 
 def make_model():
-    """Eight inputs now: five vehicle states and three health levels."""
+    """Eleven inputs: five vehicle states and six health levels."""
     return torch.nn.Sequential(
         torch.nn.Linear(len(INPUTS), HIDDEN),
         torch.nn.ReLU(),
@@ -104,11 +111,22 @@ def load_and_split(path=DATA, val_fraction=0.2, seed=0):
     df = pd.read_csv(path)
     rng = np.random.default_rng(seed)
 
+    # Stratify on which kinds of fault a run carries, so validation looks
+    # like the whole rather than happening to be mostly healthy runs.
+    #
+    # Peak severity, not the first row's. Half of faulted runs now begin
+    # healthy and degrade partway through, and reading the first row would
+    # file every one of them under "healthy" -- which would both unbalance
+    # the split and hide the imbalance.
+    per_run = df.groupby("run")[HEALTH].max()
+    bias = per_run[[c for c in HEALTH if "bias" in c]].sum(axis=1) > 0
+    noise = per_run[[c for c in HEALTH if "noise" in c]].sum(axis=1) > 0
+    kind = bias.astype(int) * 2 + noise.astype(int)
+
     val_runs = []
-    per_run = df.groupby("run")["fault_mode"].first()
-    for mode in per_run.unique():
+    for group in kind.unique():
         # copy() because a pandas index hands back a read-only view
-        runs = per_run[per_run == mode].index.to_numpy().copy()
+        runs = kind[kind == group].index.to_numpy().copy()
         rng.shuffle(runs)
         val_runs.extend(runs[:max(1, int(len(runs) * val_fraction))])
 
@@ -146,36 +164,32 @@ def main():
     pred_mean = (mean_s * y_std + y_mean).numpy()
     pred_std = (var_s.sqrt() * y_std).numpy()
 
-    print("\nDoes the model use the health input at all?")
-    print("Held-out rows, split by whether the left encoder was degraded.\n")
-    print("  %-22s %10s %12s %12s"
-          % ("", "rows", "mean error", "claimed sd"))
-    severity = val_df["severity_left"].values
-    for label, rows in [("left healthy", severity == 0),
-                        ("left degraded", severity > 0)]:
+    print("\nDoes each health input drive the right output?")
+    print("Held-out rows, left encoder, by which fault the run carried.\n")
+    print("  %-16s %8s %10s %12s %12s"
+          % ("", "rows", "severity", "mean shift", "claimed sd"))
+
+    bias = val_df["severity_bias_left"].values
+    noise = val_df["severity_noise_left"].values
+    for label, rows in [("healthy", (bias == 0) & (noise == 0)),
+                        ("bias only", (bias > 0) & (noise == 0)),
+                        ("noise only", (bias == 0) & (noise > 0)),
+                        ("both", (bias > 0) & (noise > 0))]:
         if not rows.any():
             continue
-        err = pred_mean[rows, 0] - val_df["left_encoder"].values[rows]
-        print("  %-22s %10d %12.4f %12.4f"
-              % (label, rows.sum(), err.mean(), pred_std[rows, 0].mean()))
+        shift = (pred_mean[rows, 0] - val_df["left_spin"].values[rows]).mean()
+        level = np.maximum(bias[rows], noise[rows]).mean()
+        print("  %-16s %8d %10.2f %12.4f %12.4f"
+              % (label, rows.sum(), level, shift, pred_std[rows, 0].mean()))
 
-    print("\nBy fault mode, on the degraded rows only:\n")
-    print("  %-22s %10s %12s %12s"
-          % ("", "rows", "mean shift", "claimed sd"))
-    modes = val_df["fault_mode"].values
-    for mode in ["bias", "noise_inflation"]:
-        rows = (severity > 0) & (modes == mode)
-        if not rows.any():
-            continue
-        shift = (pred_mean[rows, 0]
-                 - val_df["left_spin"].values[rows]).mean()
-        print("  %-22s %10d %12.4f %12.4f"
-              % (mode, rows.sum(), shift, pred_std[rows, 0].mean()))
-
-    print("\n  A bias should move the mean column and a noise fault should")
-    print("  move the spread column. If both move only one, the model has")
-    print("  learned to treat every fault the same way, and health will not")
-    print("  be separable by mode.")
+    print("\n  The bias row should move the mean-shift column and leave the")
+    print("  spread alone; the noise row should do the opposite. A bias of")
+    print("  severity s shifts the reading by s * 0.1805 rad/s, so a mean")
+    print("  severity near 1.6 wants a shift near 0.29.")
+    print("\n  If the two rows separate, the model is reading them as")
+    print("  different things -- which is why there are two. If they do not,")
+    print("  splitting the variable bought nothing and the ceiling is")
+    print("  somewhere else.")
 
     torch.save({"weights": model.state_dict(),
                 "x_mean": x_mean, "x_std": x_std,

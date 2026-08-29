@@ -1,13 +1,21 @@
 """
 Supplies the health-conditioned model to a filter that carries health.
 
-The state is ten entries now:
+The state is thirteen entries now:
 
     [x, y, heading, speed, turn_rate, accel, turn_accel,
-     m_left, m_right, m_gyro]
+     bias_left, bias_right, bias_gyro,
+     noise_left, noise_right, noise_gyro]
 
-and this model reads eight of them -- the five the sensors depend on, and the
-three health levels. Acceleration is skipped because no sensor reports it.
+and this model reads eleven of them -- the five the sensors depend on, and the
+six health levels. Acceleration is skipped because no sensor reports it.
+
+Two levels per sensor rather than one. A bias asks the model to shift its
+predicted reading; noise inflation asks it to widen the covariance and leave
+the reading alone. One number cannot ask for both, and a model given one
+learns a weak version of each: it corrected 57 per cent of a bias and let the
+filter back off a ruined sensor by 16 per cent where a factor of three was
+called for.
 
 WHAT CHANGES IN THE FILTER
 
@@ -51,10 +59,10 @@ INPUTS, OUTPUTS = _train.INPUTS, _train.OUTPUTS
 
 # Which entries of the filter's state this model wants, in order:
 # the five vehicle states, then the three health levels.
-TAKE = [0, 1, 2, 3, 4, 7, 8, 9]
+TAKE = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12]
 
-N_STATES = 10
-HEALTH_STATES = [7, 8, 9]
+N_STATES = 13
+HEALTH_STATES = [7, 8, 9, 10, 11, 12]
 
 # How freely the filter may move its health estimate, and how unsure it is
 # about health before any measurement arrives. Both were searched, and both
@@ -156,15 +164,16 @@ if __name__ == "__main__":
     R_const = best_constant_R()
 
     print("CAN THE FILTER ESTIMATE HEALTH?\n")
-    print("Left encoder faulted for the whole run, filter started at m = 0.")
-    print("A bias changes what the model predicts; noise inflation does not.\n")
-    print("%-18s %10s %14s %14s %10s"
-          % ("mode", "true m", "estimated m", "other channels", "NIS"))
-    print("-" * 70)
+    print("Left encoder faulted for the whole run, filter started at zero.")
+    print("The two health levels are estimated separately now, so a bias")
+    print("fault should raise the first and leave the second alone.\n")
+    print("%-18s %8s %11s %11s %12s %8s"
+          % ("mode", "true", "bias est", "noise est", "other chans", "NIS"))
+    print("-" * 74)
 
     for mode in ["none", "bias", "noise_inflation"]:
         for severity in ([0.0] if mode == "none" else [1.0, 3.0]):
-            estimates, others, nis_all = [], [], []
+            bias_est, noise_est, others, nis_all = [], [], [], []
             for seed in range(400, 406):
                 run = random_run(seed, duration=20.0)
                 meas = read_sensors(run, seed=seed, dt=DT)
@@ -182,16 +191,20 @@ if __name__ == "__main__":
                     readings, start, P10, DT)
 
                 # The second half only: the filter needs time to settle.
+                # Index 7 is the left encoder's bias level, 10 its noise
+                # level; 8, 9, 11 and 12 belong to the two sensors that were
+                # never touched and are the control.
                 half = len(means) // 2
-                estimates.append(means[half:, 7].mean())
-                others.append(means[half:, 8:10].mean())
+                bias_est.append(means[half:, 7].mean())
+                noise_est.append(means[half:, 10].mean())
+                others.append(np.abs(means[half:][:, [8, 9, 11, 12]]).mean())
                 nis_all.append(nis_of(innov, S).mean())
 
-            print("%-18s %10.2f %14.3f %14.3f %10.2f"
-                  % (mode, severity, np.mean(estimates), np.mean(others),
-                     np.mean(nis_all)))
+            print("%-18s %8.2f %11.3f %11.3f %12.3f %8.2f"
+                  % (mode, severity, np.mean(bias_est), np.mean(noise_est),
+                     np.mean(others), np.mean(nis_all)))
 
-    print("-" * 70)
+    print("-" * 74)
     print("\nThe 'other channels' column is the control. Health estimated on")
     print("the two sensors that were never touched should stay near zero; if")
     print("it rises with the fault, the filter is detecting that something is")
