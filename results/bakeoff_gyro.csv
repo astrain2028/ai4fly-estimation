@@ -1,0 +1,561 @@
+arm,condition,mode,severity,channel,seed,speed_rmse,nis,nees
+analytic + best const R,healthy,none,0,gyro,2000,0.00517221,2.93543,2.32846
+analytic + best const R,healthy,none,0,gyro,2001,0.00499234,3.01183,1.6825
+analytic + best const R,healthy,none,0,gyro,2002,0.00512038,3.1002,1.75312
+analytic + best const R,healthy,none,0,gyro,2003,0.0057107,2.9873,1.97199
+analytic + best const R,healthy,none,0,gyro,2004,0.00502561,2.85347,1.63963
+analytic + best const R,healthy,none,0,gyro,2005,0.00531179,3.01799,2.29918
+analytic + best const R,healthy,none,0,gyro,2006,0.00496983,2.90401,1.87904
+analytic + best const R,healthy,none,0,gyro,2007,0.0052508,2.80898,1.79549
+analytic + best const R,bias 0.5,bias,0.5,gyro,2000,0.00517221,2.97022,3.21166
+analytic + best const R,bias 0.5,bias,0.5,gyro,2001,0.00499234,3.02816,1.95753
+analytic + best const R,bias 0.5,bias,0.5,gyro,2002,0.00512039,3.10579,2.01741
+analytic + best const R,bias 0.5,bias,0.5,gyro,2003,0.0057107,2.99042,2.04534
+analytic + best const R,bias 0.5,bias,0.5,gyro,2004,0.00502561,2.86874,1.94431
+analytic + best const R,bias 0.5,bias,0.5,gyro,2005,0.00531179,3.04837,3.12883
+analytic + best const R,bias 0.5,bias,0.5,gyro,2006,0.00496983,2.91102,2.48546
+analytic + best const R,bias 0.5,bias,0.5,gyro,2007,0.0052508,2.82066,2.10901
+analytic + best const R,bias 1.5,bias,1.5,gyro,2000,0.00517221,3.08804,6.23102
+analytic + best const R,bias 1.5,bias,1.5,gyro,2001,0.00499233,3.10905,3.76057
+analytic + best const R,bias 1.5,bias,1.5,gyro,2002,0.00512039,3.1652,3.79895
+analytic + best const R,bias 1.5,bias,1.5,gyro,2003,0.0057107,3.0449,3.44499
+analytic + best const R,bias 1.5,bias,1.5,gyro,2004,0.00502562,2.94751,3.80661
+analytic + best const R,bias 1.5,bias,1.5,gyro,2005,0.00531178,3.15736,6.0411
+analytic + best const R,bias 1.5,bias,1.5,gyro,2006,0.00496983,2.97327,4.95127
+analytic + best const R,bias 1.5,bias,1.5,gyro,2007,0.0052508,2.89227,3.98903
+analytic + best const R,bias 3.0,bias,3,gyro,2000,0.00517221,3.38537,13.8925
+analytic + best const R,bias 3.0,bias,3,gyro,2001,0.00499233,3.35098,9.59753
+analytic + best const R,bias 3.0,bias,3,gyro,2002,0.00512039,3.3749,9.60367
+analytic + best const R,bias 3.0,bias,3,gyro,2003,0.0057107,3.24721,8.67689
+analytic + best const R,bias 3.0,bias,3,gyro,2004,0.00502562,3.18626,9.73249
+analytic + best const R,bias 3.0,bias,3,gyro,2005,0.00531178,3.44144,13.5419
+analytic + best const R,bias 3.0,bias,3,gyro,2006,0.00496982,3.18724,11.7824
+analytic + best const R,bias 3.0,bias,3,gyro,2007,0.00525081,3.12028,9.94146
+analytic + best const R,noise 0.5,noise_inflation,0.5,gyro,2000,0.00517221,3.06036,2.42201
+analytic + best const R,noise 0.5,noise_inflation,0.5,gyro,2001,0.00499234,3.11113,1.77494
+analytic + best const R,noise 0.5,noise_inflation,0.5,gyro,2002,0.00512038,3.22723,1.87317
+analytic + best const R,noise 0.5,noise_inflation,0.5,gyro,2003,0.0057107,3.11419,2.13295
+analytic + best const R,noise 0.5,noise_inflation,0.5,gyro,2004,0.00502561,2.95961,1.80535
+analytic + best const R,noise 0.5,noise_inflation,0.5,gyro,2005,0.00531179,3.13879,2.42798
+analytic + best const R,noise 0.5,noise_inflation,0.5,gyro,2006,0.00496983,2.99271,1.95514
+analytic + best const R,noise 0.5,noise_inflation,0.5,gyro,2007,0.0052508,2.88119,1.93897
+analytic + best const R,noise 1.5,noise_inflation,1.5,gyro,2000,0.00517221,3.95055,3.32835
+analytic + best const R,noise 1.5,noise_inflation,1.5,gyro,2001,0.00499234,3.93017,2.64392
+analytic + best const R,noise 1.5,noise_inflation,1.5,gyro,2002,0.00512038,4.16816,2.85648
+analytic + best const R,noise 1.5,noise_inflation,1.5,gyro,2003,0.0057107,4.06168,3.20058
+analytic + best const R,noise 1.5,noise_inflation,1.5,gyro,2004,0.00502561,3.77837,2.85088
+analytic + best const R,noise 1.5,noise_inflation,1.5,gyro,2005,0.00531179,4.06812,3.41666
+analytic + best const R,noise 1.5,noise_inflation,1.5,gyro,2006,0.00496983,3.77132,2.85843
+analytic + best const R,noise 1.5,noise_inflation,1.5,gyro,2007,0.0052508,3.64318,2.90378
+analytic + best const R,noise 3.0,noise_inflation,3,gyro,2000,0.00517221,6.88665,6.48599
+analytic + best const R,noise 3.0,noise_inflation,3,gyro,2001,0.00499233,6.70986,5.65764
+analytic + best const R,noise 3.0,noise_inflation,3,gyro,2002,0.00512038,7.29674,6.18942
+analytic + best const R,noise 3.0,noise_inflation,3,gyro,2003,0.0057107,7.2172,6.66631
+analytic + best const R,noise 3.0,noise_inflation,3,gyro,2004,0.00502561,6.52273,6.2044
+analytic + best const R,noise 3.0,noise_inflation,3,gyro,2005,0.00531178,7.18148,6.72737
+analytic + best const R,noise 3.0,noise_inflation,3,gyro,2006,0.00496983,6.44226,6.09112
+analytic + best const R,noise 3.0,noise_inflation,3,gyro,2007,0.0052508,6.3301,6.04565
+plain network,healthy,none,0,gyro,2000,0.00541588,2.9741,3.00987
+plain network,healthy,none,0,gyro,2001,0.00597322,3.01896,2.20345
+plain network,healthy,none,0,gyro,2002,0.00588133,3.11485,2.28099
+plain network,healthy,none,0,gyro,2003,0.00589342,2.99602,2.19655
+plain network,healthy,none,0,gyro,2004,0.00565728,2.87871,2.04421
+plain network,healthy,none,0,gyro,2005,0.00574069,3.0648,3.14635
+plain network,healthy,none,0,gyro,2006,0.00489707,2.91467,2.25518
+plain network,healthy,none,0,gyro,2007,0.0055046,2.82093,2.16765
+plain network,bias 0.5,bias,0.5,gyro,2000,0.00540177,3.02665,4.15843
+plain network,bias 0.5,bias,0.5,gyro,2001,0.00596437,3.04968,2.60524
+plain network,bias 0.5,bias,0.5,gyro,2002,0.00589701,3.1444,2.87983
+plain network,bias 0.5,bias,0.5,gyro,2003,0.005879,3.01771,2.66383
+plain network,bias 0.5,bias,0.5,gyro,2004,0.00564841,2.9053,2.51602
+plain network,bias 0.5,bias,0.5,gyro,2005,0.00573289,3.11556,4.28478
+plain network,bias 0.5,bias,0.5,gyro,2006,0.0048942,2.94032,3.15783
+plain network,bias 0.5,bias,0.5,gyro,2007,0.00547913,2.85064,2.79575
+plain network,bias 1.5,bias,1.5,gyro,2000,0.00536092,3.17817,7.6601
+plain network,bias 1.5,bias,1.5,gyro,2001,0.00595983,3.1949,4.99543
+plain network,bias 1.5,bias,1.5,gyro,2002,0.00586636,3.25676,5.22343
+plain network,bias 1.5,bias,1.5,gyro,2003,0.00586124,3.10543,4.91798
+plain network,bias 1.5,bias,1.5,gyro,2004,0.00562633,3.00407,4.70261
+plain network,bias 1.5,bias,1.5,gyro,2005,0.00572033,3.26678,7.76099
+plain network,bias 1.5,bias,1.5,gyro,2006,0.00489389,3.03908,6.24203
+plain network,bias 1.5,bias,1.5,gyro,2007,0.00543405,2.9548,5.3065
+plain network,bias 3.0,bias,3,gyro,2000,0.00534182,3.52839,16.0171
+plain network,bias 3.0,bias,3,gyro,2001,0.00598264,3.46971,11.2893
+plain network,bias 3.0,bias,3,gyro,2002,0.00586895,3.54442,11.8063
+plain network,bias 3.0,bias,3,gyro,2003,0.00588361,3.35338,11.6665
+plain network,bias 3.0,bias,3,gyro,2004,0.00558791,3.26921,11.0845
+plain network,bias 3.0,bias,3,gyro,2005,0.00572151,3.61344,16.0875
+plain network,bias 3.0,bias,3,gyro,2006,0.00490203,3.307,14.0072
+plain network,bias 3.0,bias,3,gyro,2007,0.00540338,3.23292,12.2305
+plain network,noise 0.5,noise_inflation,0.5,gyro,2000,0.00542005,3.09772,3.08777
+plain network,noise 0.5,noise_inflation,0.5,gyro,2001,0.00605078,3.10222,2.25168
+plain network,noise 0.5,noise_inflation,0.5,gyro,2002,0.00587665,3.24021,2.37905
+plain network,noise 0.5,noise_inflation,0.5,gyro,2003,0.00589646,3.12168,2.34279
+plain network,noise 0.5,noise_inflation,0.5,gyro,2004,0.00565847,2.98453,2.21219
+plain network,noise 0.5,noise_inflation,0.5,gyro,2005,0.00574062,3.18464,3.25784
+plain network,noise 0.5,noise_inflation,0.5,gyro,2006,0.0048984,3.00334,2.32323
+plain network,noise 0.5,noise_inflation,0.5,gyro,2007,0.00551319,2.89335,2.31633
+plain network,noise 1.5,noise_inflation,1.5,gyro,2000,0.00544163,3.9837,3.95534
+plain network,noise 1.5,noise_inflation,1.5,gyro,2001,0.00606668,3.89642,3.05782
+plain network,noise 1.5,noise_inflation,1.5,gyro,2002,0.00588938,4.17587,3.33039
+plain network,noise 1.5,noise_inflation,1.5,gyro,2003,0.00589564,4.06519,3.36967
+plain network,noise 1.5,noise_inflation,1.5,gyro,2004,0.00566224,3.80179,3.25826
+plain network,noise 1.5,noise_inflation,1.5,gyro,2005,0.00573495,4.10922,4.18323
+plain network,noise 1.5,noise_inflation,1.5,gyro,2006,0.00490435,3.78015,3.21293
+plain network,noise 1.5,noise_inflation,1.5,gyro,2007,0.00553061,3.65344,3.28487
+plain network,noise 3.0,noise_inflation,3,gyro,2000,0.00550681,6.9099,7.06511
+plain network,noise 3.0,noise_inflation,3,gyro,2001,0.00604007,6.6658,5.89782
+plain network,noise 3.0,noise_inflation,3,gyro,2002,0.00576247,7.29594,6.57451
+plain network,noise 3.0,noise_inflation,3,gyro,2003,0.00592795,7.20822,6.78468
+plain network,noise 3.0,noise_inflation,3,gyro,2004,0.00567109,6.54341,6.60442
+plain network,noise 3.0,noise_inflation,3,gyro,2005,0.00568898,7.19508,7.27404
+plain network,noise 3.0,noise_inflation,3,gyro,2006,0.00486592,6.44177,6.33941
+plain network,noise 3.0,noise_inflation,3,gyro,2007,0.00557541,6.33147,6.44005
+residual network,healthy,none,0,gyro,2000,0.00818467,2.94803,4.53702
+residual network,healthy,none,0,gyro,2001,0.00952877,2.8919,4.09461
+residual network,healthy,none,0,gyro,2002,0.00798279,3.10055,3.1781
+residual network,healthy,none,0,gyro,2003,0.00802746,2.98319,3.0903
+residual network,healthy,none,0,gyro,2004,0.0102192,2.895,4.65288
+residual network,healthy,none,0,gyro,2005,0.00729886,3.05749,4.03151
+residual network,healthy,none,0,gyro,2006,0.00770032,2.92124,3.57603
+residual network,healthy,none,0,gyro,2007,0.00867004,2.82357,3.72825
+residual network,bias 0.5,bias,0.5,gyro,2000,0.00822193,2.99193,5.77896
+residual network,bias 0.5,bias,0.5,gyro,2001,0.00966385,2.86028,4.67546
+residual network,bias 0.5,bias,0.5,gyro,2002,0.00796312,3.10567,3.40489
+residual network,bias 0.5,bias,0.5,gyro,2003,0.00799987,2.99837,3.38226
+residual network,bias 0.5,bias,0.5,gyro,2004,0.00930653,2.93819,4.66474
+residual network,bias 0.5,bias,0.5,gyro,2005,0.00740643,3.10421,5.32183
+residual network,bias 0.5,bias,0.5,gyro,2006,0.00760396,2.9447,4.48307
+residual network,bias 0.5,bias,0.5,gyro,2007,0.00865575,2.85064,4.37122
+residual network,bias 1.5,bias,1.5,gyro,2000,0.00831187,3.13013,9.53082
+residual network,bias 1.5,bias,1.5,gyro,2001,0.0100542,3.01459,7.30719
+residual network,bias 1.5,bias,1.5,gyro,2002,0.00798517,3.16763,5.21091
+residual network,bias 1.5,bias,1.5,gyro,2003,0.00801946,3.0671,5.22901
+residual network,bias 1.5,bias,1.5,gyro,2004,0.00871968,3.01397,6.39198
+residual network,bias 1.5,bias,1.5,gyro,2005,0.00768433,3.24266,9.11996
+residual network,bias 1.5,bias,1.5,gyro,2006,0.00762839,3.01674,7.18857
+residual network,bias 1.5,bias,1.5,gyro,2007,0.00867214,2.94364,6.80537
+residual network,bias 3.0,bias,3,gyro,2000,0.00818014,3.44707,17.6261
+residual network,bias 3.0,bias,3,gyro,2001,0.0112961,3.22891,14.0921
+residual network,bias 3.0,bias,3,gyro,2002,0.00831163,3.32022,10.1457
+residual network,bias 3.0,bias,3,gyro,2003,0.0077287,3.27005,10.5547
+residual network,bias 3.0,bias,3,gyro,2004,0.00877138,3.23978,12.2561
+residual network,bias 3.0,bias,3,gyro,2005,0.00781102,3.56421,17.6707
+residual network,bias 3.0,bias,3,gyro,2006,0.00754037,3.22339,14.4946
+residual network,bias 3.0,bias,3,gyro,2007,0.00899549,3.21012,13.9052
+residual network,noise 0.5,noise_inflation,0.5,gyro,2000,0.00818311,3.07245,4.62498
+residual network,noise 0.5,noise_inflation,0.5,gyro,2001,0.00982897,2.98532,4.21829
+residual network,noise 0.5,noise_inflation,0.5,gyro,2002,0.00791244,3.22699,3.2153
+residual network,noise 0.5,noise_inflation,0.5,gyro,2003,0.00803977,3.10988,3.25421
+residual network,noise 0.5,noise_inflation,0.5,gyro,2004,0.010151,3.00378,4.77669
+residual network,noise 0.5,noise_inflation,0.5,gyro,2005,0.00732766,3.17693,4.13628
+residual network,noise 0.5,noise_inflation,0.5,gyro,2006,0.00769871,3.00929,3.6439
+residual network,noise 0.5,noise_inflation,0.5,gyro,2007,0.00868946,2.896,3.90826
+residual network,noise 1.5,noise_inflation,1.5,gyro,2000,0.0081884,3.95537,5.49963
+residual network,noise 1.5,noise_inflation,1.5,gyro,2001,0.00928887,3.68753,4.43032
+residual network,noise 1.5,noise_inflation,1.5,gyro,2002,0.00793529,4.16047,4.14804
+residual network,noise 1.5,noise_inflation,1.5,gyro,2003,0.00807398,4.05435,4.31394
+residual network,noise 1.5,noise_inflation,1.5,gyro,2004,0.00916823,3.81982,5.15512
+residual network,noise 1.5,noise_inflation,1.5,gyro,2005,0.00761324,4.09938,5.15293
+residual network,noise 1.5,noise_inflation,1.5,gyro,2006,0.0076807,3.77443,4.56607
+residual network,noise 1.5,noise_inflation,1.5,gyro,2007,0.0087373,3.65463,4.94246
+residual network,noise 3.0,noise_inflation,3,gyro,2000,0.00818336,6.87316,8.58976
+residual network,noise 3.0,noise_inflation,3,gyro,2001,0.0101846,6.37264,7.90454
+residual network,noise 3.0,noise_inflation,3,gyro,2002,0.00821385,7.24803,7.66219
+residual network,noise 3.0,noise_inflation,3,gyro,2003,0.00812553,7.20837,7.71301
+residual network,noise 3.0,noise_inflation,3,gyro,2004,0.00861326,6.54129,8.20309
+residual network,noise 3.0,noise_inflation,3,gyro,2005,0.00803601,7.20121,8.5753
+residual network,noise 3.0,noise_inflation,3,gyro,2006,0.00779503,6.42506,7.79368
+residual network,noise 3.0,noise_inflation,3,gyro,2007,0.00881768,6.32497,8.17742
+adaptive R (Mehra),healthy,none,0,gyro,2000,0.00507764,2.91014,3.0692
+adaptive R (Mehra),healthy,none,0,gyro,2001,0.00491574,2.98202,2.02587
+adaptive R (Mehra),healthy,none,0,gyro,2002,0.00501255,2.9775,2.06818
+adaptive R (Mehra),healthy,none,0,gyro,2003,0.00564176,2.96413,2.35857
+adaptive R (Mehra),healthy,none,0,gyro,2004,0.00494679,2.91797,1.98975
+adaptive R (Mehra),healthy,none,0,gyro,2005,0.0053176,2.95328,2.89481
+adaptive R (Mehra),healthy,none,0,gyro,2006,0.00485396,2.95201,2.30665
+adaptive R (Mehra),healthy,none,0,gyro,2007,0.00519502,2.87722,2.14596
+adaptive R (Mehra),bias 0.5,bias,0.5,gyro,2000,0.00507136,2.91843,4.49591
+adaptive R (Mehra),bias 0.5,bias,0.5,gyro,2001,0.00491432,2.98741,2.4511
+adaptive R (Mehra),bias 0.5,bias,0.5,gyro,2002,0.0050152,2.97907,2.46644
+adaptive R (Mehra),bias 0.5,bias,0.5,gyro,2003,0.00564645,2.96524,2.47581
+adaptive R (Mehra),bias 0.5,bias,0.5,gyro,2004,0.00494558,2.9224,2.46059
+adaptive R (Mehra),bias 0.5,bias,0.5,gyro,2005,0.00532075,2.96195,4.17142
+adaptive R (Mehra),bias 0.5,bias,0.5,gyro,2006,0.00486817,2.95298,3.20513
+adaptive R (Mehra),bias 0.5,bias,0.5,gyro,2007,0.0051839,2.87958,2.61758
+adaptive R (Mehra),bias 1.5,bias,1.5,gyro,2000,0.00505258,2.94646,9.3816
+adaptive R (Mehra),bias 1.5,bias,1.5,gyro,2001,0.00490754,3.01007,5.23574
+adaptive R (Mehra),bias 1.5,bias,1.5,gyro,2002,0.00501589,2.9946,5.16887
+adaptive R (Mehra),bias 1.5,bias,1.5,gyro,2003,0.0056497,2.98071,4.69543
+adaptive R (Mehra),bias 1.5,bias,1.5,gyro,2004,0.00493774,2.94351,5.35668
+adaptive R (Mehra),bias 1.5,bias,1.5,gyro,2005,0.00532459,2.99168,8.65303
+adaptive R (Mehra),bias 1.5,bias,1.5,gyro,2006,0.00489685,2.96609,6.89276
+adaptive R (Mehra),bias 1.5,bias,1.5,gyro,2007,0.00515575,2.89686,5.50037
+adaptive R (Mehra),bias 3.0,bias,3,gyro,2000,0.00501399,3.01246,21.8262
+adaptive R (Mehra),bias 3.0,bias,3,gyro,2001,0.00489132,3.07005,14.2701
+adaptive R (Mehra),bias 3.0,bias,3,gyro,2002,0.00500959,3.0455,14.0061
+adaptive R (Mehra),bias 3.0,bias,3,gyro,2003,0.00563807,3.03416,13.0037
+adaptive R (Mehra),bias 3.0,bias,3,gyro,2004,0.00491669,3.00182,14.6115
+adaptive R (Mehra),bias 3.0,bias,3,gyro,2005,0.00533278,3.0635,20.2313
+adaptive R (Mehra),bias 3.0,bias,3,gyro,2006,0.00494446,3.01093,17.1663
+adaptive R (Mehra),bias 3.0,bias,3,gyro,2007,0.00510076,2.95103,14.7055
+adaptive R (Mehra),noise 0.5,noise_inflation,0.5,gyro,2000,0.00507861,2.94076,2.84866
+adaptive R (Mehra),noise 0.5,noise_inflation,0.5,gyro,2001,0.00492162,3.02215,2.02603
+adaptive R (Mehra),noise 0.5,noise_inflation,0.5,gyro,2002,0.00501577,3.03549,2.0662
+adaptive R (Mehra),noise 0.5,noise_inflation,0.5,gyro,2003,0.0056396,3.01294,2.39714
+adaptive R (Mehra),noise 0.5,noise_inflation,0.5,gyro,2004,0.00494295,2.96942,2.08793
+adaptive R (Mehra),noise 0.5,noise_inflation,0.5,gyro,2005,0.00531591,2.98049,2.78794
+adaptive R (Mehra),noise 0.5,noise_inflation,0.5,gyro,2006,0.00485254,2.97699,2.27592
+adaptive R (Mehra),noise 0.5,noise_inflation,0.5,gyro,2007,0.00519603,2.88878,2.21858
+adaptive R (Mehra),noise 1.5,noise_inflation,1.5,gyro,2000,0.00508006,3.18326,2.68565
+adaptive R (Mehra),noise 1.5,noise_inflation,1.5,gyro,2001,0.004929,3.31344,2.2483
+adaptive R (Mehra),noise 1.5,noise_inflation,1.5,gyro,2002,0.00502685,3.34694,2.25897
+adaptive R (Mehra),noise 1.5,noise_inflation,1.5,gyro,2003,0.00563226,3.30467,2.62346
+adaptive R (Mehra),noise 1.5,noise_inflation,1.5,gyro,2004,0.00493659,3.22015,2.43863
+adaptive R (Mehra),noise 1.5,noise_inflation,1.5,gyro,2005,0.00531054,3.27042,2.74535
+adaptive R (Mehra),noise 1.5,noise_inflation,1.5,gyro,2006,0.00485275,3.17603,2.44649
+adaptive R (Mehra),noise 1.5,noise_inflation,1.5,gyro,2007,0.00519823,3.0468,2.38126
+adaptive R (Mehra),noise 3.0,noise_inflation,3,gyro,2000,0.00508186,4.01091,3.62701
+adaptive R (Mehra),noise 3.0,noise_inflation,3,gyro,2001,0.00492791,4.29109,3.28976
+adaptive R (Mehra),noise 3.0,noise_inflation,3,gyro,2002,0.00503745,4.30288,3.30223
+adaptive R (Mehra),noise 3.0,noise_inflation,3,gyro,2003,0.00562116,4.2512,3.59306
+adaptive R (Mehra),noise 3.0,noise_inflation,3,gyro,2004,0.00492992,3.99938,3.63795
+adaptive R (Mehra),noise 3.0,noise_inflation,3,gyro,2005,0.00529944,4.29278,3.7489
+adaptive R (Mehra),noise 3.0,noise_inflation,3,gyro,2006,0.00485357,3.90238,3.4995
+adaptive R (Mehra),noise 3.0,noise_inflation,3,gyro,2007,0.00519773,3.69736,3.23937
+Gaussian process,healthy,none,0,gyro,2000,0.00498641,2.52743,2.51294
+Gaussian process,healthy,none,0,gyro,2001,0.00616028,2.21263,2.19794
+Gaussian process,healthy,none,0,gyro,2002,0.00621177,2.60746,2.08969
+Gaussian process,healthy,none,0,gyro,2003,0.00615258,2.57428,2.1086
+Gaussian process,healthy,none,0,gyro,2004,0.00556439,2.44784,1.84193
+Gaussian process,healthy,none,0,gyro,2005,0.00525658,2.61998,2.53833
+Gaussian process,healthy,none,0,gyro,2006,0.00519028,2.5265,1.99074
+Gaussian process,healthy,none,0,gyro,2007,0.00551075,2.44198,1.89792
+Gaussian process,bias 0.5,bias,0.5,gyro,2000,0.00498742,2.55643,3.63101
+Gaussian process,bias 0.5,bias,0.5,gyro,2001,0.00623241,2.20834,2.79485
+Gaussian process,bias 0.5,bias,0.5,gyro,2002,0.00625339,2.60568,2.18395
+Gaussian process,bias 0.5,bias,0.5,gyro,2003,0.00615399,2.57737,2.19252
+Gaussian process,bias 0.5,bias,0.5,gyro,2004,0.0056544,2.44985,2.34506
+Gaussian process,bias 0.5,bias,0.5,gyro,2005,0.00525712,2.64881,3.63346
+Gaussian process,bias 0.5,bias,0.5,gyro,2006,0.00517739,2.53,2.64567
+Gaussian process,bias 0.5,bias,0.5,gyro,2007,0.00550967,2.4585,2.3845
+Gaussian process,bias 1.5,bias,1.5,gyro,2000,0.00499004,2.65273,7.35666
+Gaussian process,bias 1.5,bias,1.5,gyro,2001,0.00621419,2.15692,5.2594
+Gaussian process,bias 1.5,bias,1.5,gyro,2002,0.00642069,2.62804,3.84636
+Gaussian process,bias 1.5,bias,1.5,gyro,2003,0.00614807,2.61872,3.89664
+Gaussian process,bias 1.5,bias,1.5,gyro,2004,0.00585646,2.48936,4.82191
+Gaussian process,bias 1.5,bias,1.5,gyro,2005,0.00525899,2.74355,7.33382
+Gaussian process,bias 1.5,bias,1.5,gyro,2006,0.00515472,2.57467,5.4592
+Gaussian process,bias 1.5,bias,1.5,gyro,2007,0.00551045,2.52847,4.85201
+Gaussian process,bias 3.0,bias,3,gyro,2000,0.00499486,2.89317,16.6549
+Gaussian process,bias 3.0,bias,3,gyro,2001,0.00622275,2.46776,11.0939
+Gaussian process,bias 3.0,bias,3,gyro,2002,0.00695995,2.73042,10.0423
+Gaussian process,bias 3.0,bias,3,gyro,2003,0.0061216,2.77107,10.2246
+Gaussian process,bias 3.0,bias,3,gyro,2004,0.0062089,2.63769,12.1806
+Gaussian process,bias 3.0,bias,3,gyro,2005,0.00526507,2.9809,16.6311
+Gaussian process,bias 3.0,bias,3,gyro,2006,0.00512744,2.73663,13.4014
+Gaussian process,bias 3.0,bias,3,gyro,2007,0.00550505,2.72802,12.2431
+Gaussian process,noise 0.5,noise_inflation,0.5,gyro,2000,0.00498515,2.67737,2.62979
+Gaussian process,noise 0.5,noise_inflation,0.5,gyro,2001,0.00608032,2.2889,2.24027
+Gaussian process,noise 0.5,noise_inflation,0.5,gyro,2002,0.0062106,2.75156,2.25226
+Gaussian process,noise 0.5,noise_inflation,0.5,gyro,2003,0.0061509,2.72596,2.31621
+Gaussian process,noise 0.5,noise_inflation,0.5,gyro,2004,0.00556431,2.57009,2.05037
+Gaussian process,noise 0.5,noise_inflation,0.5,gyro,2005,0.00525563,2.76281,2.69356
+Gaussian process,noise 0.5,noise_inflation,0.5,gyro,2006,0.00519133,2.63041,2.10669
+Gaussian process,noise 0.5,noise_inflation,0.5,gyro,2007,0.00551073,2.52969,2.06735
+Gaussian process,noise 1.5,noise_inflation,1.5,gyro,2000,0.00498259,3.73627,3.76024
+Gaussian process,noise 1.5,noise_inflation,1.5,gyro,2001,0.00633447,3.13198,3.19027
+Gaussian process,noise 1.5,noise_inflation,1.5,gyro,2002,0.00621247,3.82765,3.47356
+Gaussian process,noise 1.5,noise_inflation,1.5,gyro,2003,0.00614802,3.85338,3.66228
+Gaussian process,noise 1.5,noise_inflation,1.5,gyro,2004,0.00555434,3.52528,3.34773
+Gaussian process,noise 1.5,noise_inflation,1.5,gyro,2005,0.00525391,3.86566,3.9183
+Gaussian process,noise 1.5,noise_inflation,1.5,gyro,2006,0.00519532,3.55302,3.27938
+Gaussian process,noise 1.5,noise_inflation,1.5,gyro,2007,0.00551046,3.43505,3.24913
+Gaussian process,noise 3.0,noise_inflation,3,gyro,2000,0.00497893,7.22348,7.69946
+Gaussian process,noise 3.0,noise_inflation,3,gyro,2001,0.0061743,5.57568,5.59838
+Gaussian process,noise 3.0,noise_inflation,3,gyro,2002,0.00624062,7.38548,7.51084
+Gaussian process,noise 3.0,noise_inflation,3,gyro,2003,0.0061449,7.60351,8.00802
+Gaussian process,noise 3.0,noise_inflation,3,gyro,2004,0.00551421,6.73615,7.49617
+Gaussian process,noise 3.0,noise_inflation,3,gyro,2005,0.00525176,7.56266,8.0399
+Gaussian process,noise 3.0,noise_inflation,3,gyro,2006,0.00520724,6.72415,7.39119
+Gaussian process,noise 3.0,noise_inflation,3,gyro,2007,0.00550998,6.61766,7.12761
+heteroscedastic,healthy,none,0,gyro,2000,0.00556337,2.53369,2.03666
+heteroscedastic,healthy,none,0,gyro,2001,0.00572872,2.3172,1.60559
+heteroscedastic,healthy,none,0,gyro,2002,0.00511803,2.64492,1.46882
+heteroscedastic,healthy,none,0,gyro,2003,0.0058436,2.56684,1.71083
+heteroscedastic,healthy,none,0,gyro,2004,0.00538739,2.47726,1.49371
+heteroscedastic,healthy,none,0,gyro,2005,0.00583374,2.57241,1.97241
+heteroscedastic,healthy,none,0,gyro,2006,0.00512012,2.64794,1.66883
+heteroscedastic,healthy,none,0,gyro,2007,0.00553509,2.31525,1.53235
+heteroscedastic,bias 0.5,bias,0.5,gyro,2000,0.0055581,2.56974,2.68937
+heteroscedastic,bias 0.5,bias,0.5,gyro,2001,0.00576752,2.33794,1.76191
+heteroscedastic,bias 0.5,bias,0.5,gyro,2002,0.00513589,2.64537,1.52724
+heteroscedastic,bias 0.5,bias,0.5,gyro,2003,0.00584879,2.56767,1.66928
+heteroscedastic,bias 0.5,bias,0.5,gyro,2004,0.0053936,2.49005,1.75495
+heteroscedastic,bias 0.5,bias,0.5,gyro,2005,0.00581901,2.60445,2.52712
+heteroscedastic,bias 0.5,bias,0.5,gyro,2006,0.00511793,2.6593,2.08838
+heteroscedastic,bias 0.5,bias,0.5,gyro,2007,0.00552282,2.32968,1.73897
+heteroscedastic,bias 1.5,bias,1.5,gyro,2000,0.00554869,2.68429,4.94871
+heteroscedastic,bias 1.5,bias,1.5,gyro,2001,0.00582482,2.41381,2.87067
+heteroscedastic,bias 1.5,bias,1.5,gyro,2002,0.00516443,2.68715,2.5738
+heteroscedastic,bias 1.5,bias,1.5,gyro,2003,0.00586511,2.61112,2.52026
+heteroscedastic,bias 1.5,bias,1.5,gyro,2004,0.00543209,2.55846,3.23849
+heteroscedastic,bias 1.5,bias,1.5,gyro,2005,0.00578961,2.70936,4.57696
+heteroscedastic,bias 1.5,bias,1.5,gyro,2006,0.00513133,2.7265,3.87806
+heteroscedastic,bias 1.5,bias,1.5,gyro,2007,0.0054978,2.39816,3.0743
+heteroscedastic,bias 3.0,bias,3,gyro,2000,0.00553383,2.96153,10.6901
+heteroscedastic,bias 3.0,bias,3,gyro,2001,0.00587551,2.62277,6.7938
+heteroscedastic,bias 3.0,bias,3,gyro,2002,0.00518429,2.85367,6.4708
+heteroscedastic,bias 3.0,bias,3,gyro,2003,0.0058998,2.78194,6.15573
+heteroscedastic,bias 3.0,bias,3,gyro,2004,0.00549438,2.7655,7.85202
+heteroscedastic,bias 3.0,bias,3,gyro,2005,0.00573575,2.96887,9.97062
+heteroscedastic,bias 3.0,bias,3,gyro,2006,0.00516189,2.93683,9.04615
+heteroscedastic,bias 3.0,bias,3,gyro,2007,0.00546769,2.60057,7.36861
+heteroscedastic,noise 0.5,noise_inflation,0.5,gyro,2000,0.00556065,2.63361,2.11033
+heteroscedastic,noise 0.5,noise_inflation,0.5,gyro,2001,0.00575068,2.38671,1.67425
+heteroscedastic,noise 0.5,noise_inflation,0.5,gyro,2002,0.00511835,2.74388,1.56295
+heteroscedastic,noise 0.5,noise_inflation,0.5,gyro,2003,0.00584935,2.66595,1.84554
+heteroscedastic,noise 0.5,noise_inflation,0.5,gyro,2004,0.00538569,2.56208,1.62206
+heteroscedastic,noise 0.5,noise_inflation,0.5,gyro,2005,0.00583129,2.66679,2.06735
+heteroscedastic,noise 0.5,noise_inflation,0.5,gyro,2006,0.00512195,2.72245,1.72889
+heteroscedastic,noise 0.5,noise_inflation,0.5,gyro,2007,0.00553338,2.37206,1.64065
+heteroscedastic,noise 1.5,noise_inflation,1.5,gyro,2000,0.0055544,3.3382,2.80109
+heteroscedastic,noise 1.5,noise_inflation,1.5,gyro,2001,0.00572462,2.95866,2.20637
+heteroscedastic,noise 1.5,noise_inflation,1.5,gyro,2002,0.00511696,3.4856,2.3065
+heteroscedastic,noise 1.5,noise_inflation,1.5,gyro,2003,0.00586388,3.41485,2.68299
+heteroscedastic,noise 1.5,noise_inflation,1.5,gyro,2004,0.00538376,3.21624,2.43059
+heteroscedastic,noise 1.5,noise_inflation,1.5,gyro,2005,0.00582169,3.39391,2.79604
+heteroscedastic,noise 1.5,noise_inflation,1.5,gyro,2006,0.00513449,3.37554,2.46041
+heteroscedastic,noise 1.5,noise_inflation,1.5,gyro,2007,0.00552602,2.95418,2.3443
+heteroscedastic,noise 3.0,noise_inflation,3,gyro,2000,0.00555178,5.66234,5.19565
+heteroscedastic,noise 3.0,noise_inflation,3,gyro,2001,0.00573306,4.92682,4.187
+heteroscedastic,noise 3.0,noise_inflation,3,gyro,2002,0.00511679,5.95418,4.82122
+heteroscedastic,noise 3.0,noise_inflation,3,gyro,2003,0.00589477,5.91389,5.36069
+heteroscedastic,noise 3.0,noise_inflation,3,gyro,2004,0.00537551,5.41784,5.01902
+heteroscedastic,noise 3.0,noise_inflation,3,gyro,2005,0.00579354,5.83145,5.23842
+heteroscedastic,noise 3.0,noise_inflation,3,gyro,2006,0.00514993,5.61319,5.07505
+heteroscedastic,noise 3.0,noise_inflation,3,gyro,2007,0.00551745,5.00158,4.61473
+ensemble of 5,healthy,none,0,gyro,2000,0.00526839,2.48532,1.98408
+ensemble of 5,healthy,none,0,gyro,2001,0.00563041,2.22583,1.51522
+ensemble of 5,healthy,none,0,gyro,2002,0.00509435,2.57792,1.4183
+ensemble of 5,healthy,none,0,gyro,2003,0.00569425,2.53475,1.6176
+ensemble of 5,healthy,none,0,gyro,2004,0.0050658,2.43896,1.41094
+ensemble of 5,healthy,none,0,gyro,2005,0.00543766,2.51955,1.94042
+ensemble of 5,healthy,none,0,gyro,2006,0.00495572,2.6173,1.65517
+ensemble of 5,healthy,none,0,gyro,2007,0.00516955,2.26263,1.40915
+ensemble of 5,bias 0.5,bias,0.5,gyro,2000,0.00525899,2.5177,2.68869
+ensemble of 5,bias 0.5,bias,0.5,gyro,2001,0.00567837,2.2381,1.75195
+ensemble of 5,bias 0.5,bias,0.5,gyro,2002,0.00511031,2.58064,1.55027
+ensemble of 5,bias 0.5,bias,0.5,gyro,2003,0.00569249,2.5377,1.68122
+ensemble of 5,bias 0.5,bias,0.5,gyro,2004,0.0050634,2.45453,1.71956
+ensemble of 5,bias 0.5,bias,0.5,gyro,2005,0.00542452,2.54671,2.58455
+ensemble of 5,bias 0.5,bias,0.5,gyro,2006,0.00495456,2.62685,2.15757
+ensemble of 5,bias 0.5,bias,0.5,gyro,2007,0.00516038,2.2755,1.67411
+ensemble of 5,bias 1.5,bias,1.5,gyro,2000,0.00523771,2.6224,5.04012
+ensemble of 5,bias 1.5,bias,1.5,gyro,2001,0.00578824,2.2915,3.0436
+ensemble of 5,bias 1.5,bias,1.5,gyro,2002,0.00514555,2.62543,2.73286
+ensemble of 5,bias 1.5,bias,1.5,gyro,2003,0.00569316,2.58406,2.73545
+ensemble of 5,bias 1.5,bias,1.5,gyro,2004,0.00506836,2.52693,3.30179
+ensemble of 5,bias 1.5,bias,1.5,gyro,2005,0.00540032,2.64017,4.8032
+ensemble of 5,bias 1.5,bias,1.5,gyro,2006,0.00495358,2.68964,4.15131
+ensemble of 5,bias 1.5,bias,1.5,gyro,2007,0.00514692,2.33989,3.12443
+ensemble of 5,bias 3.0,bias,3,gyro,2000,0.00521018,2.88002,10.9089
+ensemble of 5,bias 3.0,bias,3,gyro,2001,0.00599236,2.46531,6.7799
+ensemble of 5,bias 3.0,bias,3,gyro,2002,0.00518372,2.79232,6.79057
+ensemble of 5,bias 3.0,bias,3,gyro,2003,0.00571655,2.75517,6.64892
+ensemble of 5,bias 3.0,bias,3,gyro,2004,0.00508548,2.74,8.07946
+ensemble of 5,bias 3.0,bias,3,gyro,2005,0.00536905,2.87862,10.4492
+ensemble of 5,bias 3.0,bias,3,gyro,2006,0.00494236,2.89049,9.61257
+ensemble of 5,bias 3.0,bias,3,gyro,2007,0.00515267,2.53169,7.59071
+ensemble of 5,noise 0.5,noise_inflation,0.5,gyro,2000,0.00526758,2.58377,2.05613
+ensemble of 5,noise 0.5,noise_inflation,0.5,gyro,2001,0.00561602,2.28308,1.55002
+ensemble of 5,noise 0.5,noise_inflation,0.5,gyro,2002,0.00509291,2.67494,1.50923
+ensemble of 5,noise 0.5,noise_inflation,0.5,gyro,2003,0.00569543,2.6333,1.73966
+ensemble of 5,noise 0.5,noise_inflation,0.5,gyro,2004,0.00506371,2.52328,1.53662
+ensemble of 5,noise 0.5,noise_inflation,0.5,gyro,2005,0.00543744,2.61219,2.03462
+ensemble of 5,noise 0.5,noise_inflation,0.5,gyro,2006,0.00495661,2.69127,1.71512
+ensemble of 5,noise 0.5,noise_inflation,0.5,gyro,2007,0.00516726,2.31897,1.5178
+ensemble of 5,noise 1.5,noise_inflation,1.5,gyro,2000,0.00526746,3.27826,2.73376
+ensemble of 5,noise 1.5,noise_inflation,1.5,gyro,2001,0.00561279,2.82365,2.07562
+ensemble of 5,noise 1.5,noise_inflation,1.5,gyro,2002,0.00508758,3.40341,2.24157
+ensemble of 5,noise 1.5,noise_inflation,1.5,gyro,2003,0.00569896,3.37761,2.55045
+ensemble of 5,noise 1.5,noise_inflation,1.5,gyro,2004,0.00505861,3.17416,2.3334
+ensemble of 5,noise 1.5,noise_inflation,1.5,gyro,2005,0.00543359,3.32783,2.75584
+ensemble of 5,noise 1.5,noise_inflation,1.5,gyro,2006,0.00495859,3.33858,2.43703
+ensemble of 5,noise 1.5,noise_inflation,1.5,gyro,2007,0.00516096,2.89518,2.21783
+ensemble of 5,noise 3.0,noise_inflation,3,gyro,2000,0.00526823,5.56361,5.08279
+ensemble of 5,noise 3.0,noise_inflation,3,gyro,2001,0.00561199,4.65835,3.92011
+ensemble of 5,noise 3.0,noise_inflation,3,gyro,2002,0.00507367,5.83344,4.71765
+ensemble of 5,noise 3.0,noise_inflation,3,gyro,2003,0.00570879,5.86147,5.18476
+ensemble of 5,noise 3.0,noise_inflation,3,gyro,2004,0.0050512,5.35721,4.89021
+ensemble of 5,noise 3.0,noise_inflation,3,gyro,2005,0.00542523,5.72617,5.17441
+ensemble of 5,noise 3.0,noise_inflation,3,gyro,2006,0.00495818,5.55628,5.03068
+ensemble of 5,noise 3.0,noise_inflation,3,gyro,2007,0.0051503,4.91991,4.4732
+health-conditioned,healthy,none,0,gyro,2000,0.00751647,1.99949,2.04783
+health-conditioned,healthy,none,0,gyro,2001,0.0100974,1.83616,2.23976
+health-conditioned,healthy,none,0,gyro,2002,0.00796451,2.0519,1.80537
+health-conditioned,healthy,none,0,gyro,2003,0.00645977,2.06427,1.4556
+health-conditioned,healthy,none,0,gyro,2004,0.00925884,1.80046,1.93924
+health-conditioned,healthy,none,0,gyro,2005,0.00791949,1.94834,2.0049
+health-conditioned,healthy,none,0,gyro,2006,0.0058938,2.08803,1.55713
+health-conditioned,healthy,none,0,gyro,2007,0.00578369,1.79451,1.18982
+health-conditioned,bias 0.5,bias,0.5,gyro,2000,0.00781059,1.95423,2.81949
+health-conditioned,bias 0.5,bias,0.5,gyro,2001,0.0103536,1.82123,2.54173
+health-conditioned,bias 0.5,bias,0.5,gyro,2002,0.00808978,2.04883,1.94778
+health-conditioned,bias 0.5,bias,0.5,gyro,2003,0.00664796,2.00439,1.43449
+health-conditioned,bias 0.5,bias,0.5,gyro,2004,0.0101815,1.7721,2.19773
+health-conditioned,bias 0.5,bias,0.5,gyro,2005,0.0081056,1.92384,2.54004
+health-conditioned,bias 0.5,bias,0.5,gyro,2006,0.00579888,2.07474,1.97518
+health-conditioned,bias 0.5,bias,0.5,gyro,2007,0.00601046,1.79942,1.39818
+health-conditioned,bias 1.5,bias,1.5,gyro,2000,0.00897236,1.88399,5.20275
+health-conditioned,bias 1.5,bias,1.5,gyro,2001,0.01106,1.78641,4.09449
+health-conditioned,bias 1.5,bias,1.5,gyro,2002,0.00877309,1.97684,3.04585
+health-conditioned,bias 1.5,bias,1.5,gyro,2003,0.00911585,1.85623,2.79424
+health-conditioned,bias 1.5,bias,1.5,gyro,2004,0.012809,1.73212,3.74832
+health-conditioned,bias 1.5,bias,1.5,gyro,2005,0.00969661,1.89189,4.53161
+health-conditioned,bias 1.5,bias,1.5,gyro,2006,0.00734158,1.97135,4.1613
+health-conditioned,bias 1.5,bias,1.5,gyro,2007,0.00678241,1.76185,2.59507
+health-conditioned,bias 3.0,bias,3,gyro,2000,0.0104938,1.86737,10.1998
+health-conditioned,bias 3.0,bias,3,gyro,2001,0.0124068,1.72092,8.41616
+health-conditioned,bias 3.0,bias,3,gyro,2002,0.0113536,1.86278,6.8059
+health-conditioned,bias 3.0,bias,3,gyro,2003,0.0112559,1.82017,6.06026
+health-conditioned,bias 3.0,bias,3,gyro,2004,0.0149705,1.68398,7.63178
+health-conditioned,bias 3.0,bias,3,gyro,2005,0.011373,1.87616,8.46727
+health-conditioned,bias 3.0,bias,3,gyro,2006,0.00910091,1.88349,9.01754
+health-conditioned,bias 3.0,bias,3,gyro,2007,0.0087959,1.68485,6.20128
+health-conditioned,noise 0.5,noise_inflation,0.5,gyro,2000,0.00759798,2.08841,2.13618
+health-conditioned,noise 0.5,noise_inflation,0.5,gyro,2001,0.0101896,1.91129,2.29939
+health-conditioned,noise 0.5,noise_inflation,0.5,gyro,2002,0.00789912,2.18639,1.8842
+health-conditioned,noise 0.5,noise_inflation,0.5,gyro,2003,0.00638876,2.15452,1.55122
+health-conditioned,noise 0.5,noise_inflation,0.5,gyro,2004,0.00949576,1.87604,2.11212
+health-conditioned,noise 0.5,noise_inflation,0.5,gyro,2005,0.00759599,2.02012,1.99842
+health-conditioned,noise 0.5,noise_inflation,0.5,gyro,2006,0.00558976,2.18932,1.56193
+health-conditioned,noise 0.5,noise_inflation,0.5,gyro,2007,0.00569574,1.83476,1.25371
+health-conditioned,noise 1.5,noise_inflation,1.5,gyro,2000,0.00721153,2.65636,2.62471
+health-conditioned,noise 1.5,noise_inflation,1.5,gyro,2001,0.0122232,2.35065,3.48098
+health-conditioned,noise 1.5,noise_inflation,1.5,gyro,2002,0.00765181,2.88569,2.5021
+health-conditioned,noise 1.5,noise_inflation,1.5,gyro,2003,0.00636533,2.88363,2.3207
+health-conditioned,noise 1.5,noise_inflation,1.5,gyro,2004,0.0119338,2.25345,2.6404
+health-conditioned,noise 1.5,noise_inflation,1.5,gyro,2005,0.00775864,2.53062,2.4537
+health-conditioned,noise 1.5,noise_inflation,1.5,gyro,2006,0.00641922,2.73171,2.38099
+health-conditioned,noise 1.5,noise_inflation,1.5,gyro,2007,0.00658178,2.28005,1.81541
+health-conditioned,noise 3.0,noise_inflation,3,gyro,2000,0.00713606,4.43447,3.92004
+health-conditioned,noise 3.0,noise_inflation,3,gyro,2001,0.0166505,3.48694,6.70253
+health-conditioned,noise 3.0,noise_inflation,3,gyro,2002,0.00981953,4.78989,4.5807
+health-conditioned,noise 3.0,noise_inflation,3,gyro,2003,0.0068688,4.4758,3.71043
+health-conditioned,noise 3.0,noise_inflation,3,gyro,2004,0.0159397,3.92669,5.29487
+health-conditioned,noise 3.0,noise_inflation,3,gyro,2005,0.00975927,4.13342,3.9266
+health-conditioned,noise 3.0,noise_inflation,3,gyro,2006,0.00590968,4.17013,3.70836
+health-conditioned,noise 3.0,noise_inflation,3,gyro,2007,0.0139744,3.93608,4.46037
+combined,healthy,none,0,gyro,2000,0.00748738,1.99422,2.03707
+combined,healthy,none,0,gyro,2001,0.0100974,1.83616,2.23976
+combined,healthy,none,0,gyro,2002,0.00795838,2.03054,1.79031
+combined,healthy,none,0,gyro,2003,0.00647963,2.0599,1.46113
+combined,healthy,none,0,gyro,2004,0.00925926,1.80042,1.93919
+combined,healthy,none,0,gyro,2005,0.00791835,1.9474,2.00434
+combined,healthy,none,0,gyro,2006,0.0058938,2.0877,1.55695
+combined,healthy,none,0,gyro,2007,0.00578457,1.79447,1.18997
+combined,bias 0.5,bias,0.5,gyro,2000,0.00779862,1.95276,2.81527
+combined,bias 0.5,bias,0.5,gyro,2001,0.0103536,1.82123,2.54173
+combined,bias 0.5,bias,0.5,gyro,2002,0.00809822,2.03844,1.94553
+combined,bias 0.5,bias,0.5,gyro,2003,0.00670297,2.00409,1.44571
+combined,bias 0.5,bias,0.5,gyro,2004,0.0101816,1.7721,2.19775
+combined,bias 0.5,bias,0.5,gyro,2005,0.00810317,1.92227,2.53887
+combined,bias 0.5,bias,0.5,gyro,2006,0.00579888,2.07461,1.97505
+combined,bias 0.5,bias,0.5,gyro,2007,0.00601127,1.79939,1.39829
+combined,bias 1.5,bias,1.5,gyro,2000,0.00896691,1.88374,5.20247
+combined,bias 1.5,bias,1.5,gyro,2001,0.01106,1.78641,4.09449
+combined,bias 1.5,bias,1.5,gyro,2002,0.00878966,1.96806,3.04457
+combined,bias 1.5,bias,1.5,gyro,2003,0.00911871,1.85434,2.7934
+combined,bias 1.5,bias,1.5,gyro,2004,0.012809,1.73212,3.74832
+combined,bias 1.5,bias,1.5,gyro,2005,0.00967945,1.88911,4.52844
+combined,bias 1.5,bias,1.5,gyro,2006,0.00734173,1.97127,4.16124
+combined,bias 1.5,bias,1.5,gyro,2007,0.00678328,1.76178,2.59516
+combined,bias 3.0,bias,3,gyro,2000,0.0104918,1.86735,10.1996
+combined,bias 3.0,bias,3,gyro,2001,0.0124068,1.72092,8.41616
+combined,bias 3.0,bias,3,gyro,2002,0.0113535,1.86278,6.80588
+combined,bias 3.0,bias,3,gyro,2003,0.0112558,1.82018,6.06028
+combined,bias 3.0,bias,3,gyro,2004,0.0149705,1.68398,7.63178
+combined,bias 3.0,bias,3,gyro,2005,0.0113676,1.87306,8.459
+combined,bias 3.0,bias,3,gyro,2006,0.00910091,1.88349,9.01754
+combined,bias 3.0,bias,3,gyro,2007,0.0087959,1.68485,6.20128
+combined,noise 0.5,noise_inflation,0.5,gyro,2000,0.00756581,2.0832,2.1255
+combined,noise 0.5,noise_inflation,0.5,gyro,2001,0.0101897,1.91129,2.29939
+combined,noise 0.5,noise_inflation,0.5,gyro,2002,0.00790998,2.16522,1.88405
+combined,noise 0.5,noise_inflation,0.5,gyro,2003,0.0064051,2.14741,1.55815
+combined,noise 0.5,noise_inflation,0.5,gyro,2004,0.0094969,1.87599,2.11265
+combined,noise 0.5,noise_inflation,0.5,gyro,2005,0.00759599,2.01953,1.9983
+combined,noise 0.5,noise_inflation,0.5,gyro,2006,0.00558942,2.18902,1.56151
+combined,noise 0.5,noise_inflation,0.5,gyro,2007,0.00569573,1.83475,1.2537
+combined,noise 1.5,noise_inflation,1.5,gyro,2000,0.0070427,2.46857,2.34276
+combined,noise 1.5,noise_inflation,1.5,gyro,2001,0.0120738,2.30498,3.34995
+combined,noise 1.5,noise_inflation,1.5,gyro,2002,0.00765827,2.61041,2.16382
+combined,noise 1.5,noise_inflation,1.5,gyro,2003,0.00634546,2.62064,2.02837
+combined,noise 1.5,noise_inflation,1.5,gyro,2004,0.0111029,2.27334,2.46321
+combined,noise 1.5,noise_inflation,1.5,gyro,2005,0.0074895,2.40991,2.20948
+combined,noise 1.5,noise_inflation,1.5,gyro,2006,0.00580431,2.6388,2.086
+combined,noise 1.5,noise_inflation,1.5,gyro,2007,0.00628575,2.22274,1.71844
+combined,noise 3.0,noise_inflation,3,gyro,2000,0.00775635,2.83261,2.71037
+combined,noise 3.0,noise_inflation,3,gyro,2001,0.0130289,2.63164,3.77199
+combined,noise 3.0,noise_inflation,3,gyro,2002,0.00765271,2.77341,2.26578
+combined,noise 3.0,noise_inflation,3,gyro,2003,0.00651983,2.98672,2.35651
+combined,noise 3.0,noise_inflation,3,gyro,2004,0.00977095,2.59971,2.9866
+combined,noise 3.0,noise_inflation,3,gyro,2005,0.00951209,2.55431,2.23741
+combined,noise 3.0,noise_inflation,3,gyro,2006,0.00563622,2.95387,2.31231
+combined,noise 3.0,noise_inflation,3,gyro,2007,0.00579199,2.5459,1.98656
+MMAE bank of 7,healthy,none,0,gyro,2000,0.00522626,2.79021,1.84154
+MMAE bank of 7,healthy,none,0,gyro,2001,0.00501971,2.82534,1.60764
+MMAE bank of 7,healthy,none,0,gyro,2002,0.00524839,2.90911,1.67465
+MMAE bank of 7,healthy,none,0,gyro,2003,0.00578369,2.80523,1.86023
+MMAE bank of 7,healthy,none,0,gyro,2004,0.0050825,2.71578,1.58164
+MMAE bank of 7,healthy,none,0,gyro,2005,0.00536499,2.83724,1.97811
+MMAE bank of 7,healthy,none,0,gyro,2006,0.00505497,2.7906,1.79888
+MMAE bank of 7,healthy,none,0,gyro,2007,0.00538908,2.62281,1.73951
+MMAE bank of 7,bias 0.5,bias,0.5,gyro,2000,0.0052112,2.79996,1.69434
+MMAE bank of 7,bias 0.5,bias,0.5,gyro,2001,0.00502781,2.82561,1.6352
+MMAE bank of 7,bias 0.5,bias,0.5,gyro,2002,0.00527573,2.90911,1.86337
+MMAE bank of 7,bias 0.5,bias,0.5,gyro,2003,0.00584721,2.79209,1.90058
+MMAE bank of 7,bias 0.5,bias,0.5,gyro,2004,0.00507596,2.70799,1.63646
+MMAE bank of 7,bias 0.5,bias,0.5,gyro,2005,0.00541158,2.83146,1.7767
+MMAE bank of 7,bias 0.5,bias,0.5,gyro,2006,0.00505496,2.79029,2.28402
+MMAE bank of 7,bias 0.5,bias,0.5,gyro,2007,0.0053872,2.6011,1.71087
+MMAE bank of 7,bias 1.5,bias,1.5,gyro,2000,0.00521665,2.81503,2.27823
+MMAE bank of 7,bias 1.5,bias,1.5,gyro,2001,0.00502507,2.84162,1.62134
+MMAE bank of 7,bias 1.5,bias,1.5,gyro,2002,0.00529285,2.91447,1.82601
+MMAE bank of 7,bias 1.5,bias,1.5,gyro,2003,0.00599422,2.8331,1.91533
+MMAE bank of 7,bias 1.5,bias,1.5,gyro,2004,0.0050809,2.71955,1.6106
+MMAE bank of 7,bias 1.5,bias,1.5,gyro,2005,0.00564493,2.85162,2.33608
+MMAE bank of 7,bias 1.5,bias,1.5,gyro,2006,0.00503916,2.78661,1.86383
+MMAE bank of 7,bias 1.5,bias,1.5,gyro,2007,0.00535664,2.62103,1.73778
+MMAE bank of 7,bias 3.0,bias,3,gyro,2000,0.0071987,2.73312,7.67849
+MMAE bank of 7,bias 3.0,bias,3,gyro,2001,0.00581751,2.87596,4.0629
+MMAE bank of 7,bias 3.0,bias,3,gyro,2002,0.00614083,2.91665,4.12741
+MMAE bank of 7,bias 3.0,bias,3,gyro,2003,0.00666482,2.88538,3.9278
+MMAE bank of 7,bias 3.0,bias,3,gyro,2004,0.00536046,2.75305,3.78319
+MMAE bank of 7,bias 3.0,bias,3,gyro,2005,0.00790165,2.82993,7.4435
+MMAE bank of 7,bias 3.0,bias,3,gyro,2006,0.00526488,2.82284,4.88761
+MMAE bank of 7,bias 3.0,bias,3,gyro,2007,0.00551879,2.67942,3.99078
+MMAE bank of 7,noise 0.5,noise_inflation,0.5,gyro,2000,0.00523106,2.90806,1.91466
+MMAE bank of 7,noise 0.5,noise_inflation,0.5,gyro,2001,0.00500939,2.88853,1.67279
+MMAE bank of 7,noise 0.5,noise_inflation,0.5,gyro,2002,0.0052196,3.02729,1.78211
+MMAE bank of 7,noise 0.5,noise_inflation,0.5,gyro,2003,0.00578771,2.92422,2.00873
+MMAE bank of 7,noise 0.5,noise_inflation,0.5,gyro,2004,0.0050845,2.81721,1.74187
+MMAE bank of 7,noise 0.5,noise_inflation,0.5,gyro,2005,0.00537896,2.9558,2.11836
+MMAE bank of 7,noise 0.5,noise_inflation,0.5,gyro,2006,0.00505606,2.8723,1.85766
+MMAE bank of 7,noise 0.5,noise_inflation,0.5,gyro,2007,0.00538783,2.69457,1.8768
+MMAE bank of 7,noise 1.5,noise_inflation,1.5,gyro,2000,0.00521541,2.94974,1.9423
+MMAE bank of 7,noise 1.5,noise_inflation,1.5,gyro,2001,0.00498142,2.93411,1.62914
+MMAE bank of 7,noise 1.5,noise_inflation,1.5,gyro,2002,0.00522209,3.08265,1.71343
+MMAE bank of 7,noise 1.5,noise_inflation,1.5,gyro,2003,0.00578448,2.98298,2.01512
+MMAE bank of 7,noise 1.5,noise_inflation,1.5,gyro,2004,0.00508793,2.83161,1.75388
+MMAE bank of 7,noise 1.5,noise_inflation,1.5,gyro,2005,0.00542984,3.01622,2.0294
+MMAE bank of 7,noise 1.5,noise_inflation,1.5,gyro,2006,0.00514523,2.83431,1.72442
+MMAE bank of 7,noise 1.5,noise_inflation,1.5,gyro,2007,0.00533621,2.76758,1.96205
+MMAE bank of 7,noise 3.0,noise_inflation,3,gyro,2000,0.00520852,4.34258,3.18962
+MMAE bank of 7,noise 3.0,noise_inflation,3,gyro,2001,0.00497798,4.26663,2.81403
+MMAE bank of 7,noise 3.0,noise_inflation,3,gyro,2002,0.00515419,4.58593,2.99279
+MMAE bank of 7,noise 3.0,noise_inflation,3,gyro,2003,0.00580912,4.48865,3.39867
+MMAE bank of 7,noise 3.0,noise_inflation,3,gyro,2004,0.00506737,4.14329,3.06633
+MMAE bank of 7,noise 3.0,noise_inflation,3,gyro,2005,0.00538637,4.49183,3.33473
+MMAE bank of 7,noise 3.0,noise_inflation,3,gyro,2006,0.00503284,4.11437,2.99058
+MMAE bank of 7,noise 3.0,noise_inflation,3,gyro,2007,0.00527118,3.9857,3.08063

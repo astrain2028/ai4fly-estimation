@@ -46,6 +46,8 @@ TESTS = [
     "models/ensemble/measurement.py",
     "models/health/measurement.py",
     "models/combined/measurement.py",
+    "models/doubt/measurement.py",
+    "models/mmae/measurement.py",
 ]
 
 # Minutes each, and they retrain models or sweep parameters. Worth running
@@ -54,6 +56,7 @@ SLOW = [
     "robot/make_dataset.py",
     "robot/make_faulted.py",
     "models/bhr/laplace.py",
+    "models/doubt/laplace.py",
     "models/health/train.py",
     "experiments/healthy.py",
     "experiments/degradation.py",
@@ -66,6 +69,8 @@ SLOW = [
     "experiments/redundancy.py",
     "experiments/timing.py",
     "experiments/tune.py",
+    "experiments/bakeoff.py",
+    "experiments/figures.py",
 ]
 
 TIMEOUT = 900

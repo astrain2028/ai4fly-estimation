@@ -1,0 +1,33 @@
+# Trained model weights are NOT in this repository -- .gitignore excludes
+# *.pt and *.npz, on the same reasoning it excludes the generated datasets:
+# the thing worth keeping is the generator, not its output.
+#
+# That makes this file load-bearing. Every learned arm has to be retrained
+# from source before it will run, so the environment below is what stands
+# behind every number in the README.
+#
+# Reproducing from a clean checkout:
+#
+#     pip install -r requirements.txt
+#     python robot/make_dataset.py            healthy runs
+#     python robot/make_faulted.py 500        runs with degraded sensors
+#     python models/<arm>/train.py            once per learned arm
+#     python models/bhr/laplace.py            the posterior for bhr
+#     python run_tests.py                     everything still works
+#     python experiments/bakeoff.py           the comparison table
+#
+# Every training script sets its seed, so a retrain should reproduce the
+# published tables. That has not yet been verified end to end.
+
+numpy>=2.0
+pandas>=2.0
+torch>=2.0
+
+# Figures only. experiments/figures.py needs it; nothing else does, and the
+# filter never imports it.
+matplotlib>=3.8
+
+# Tested on Python 3.13.5 with numpy 2.4.2, pandas 3.0.3, torch 2.12.1+cpu
+# and matplotlib 3.10.8. The CPU build of torch is deliberate: the whole
+# argument is about what fits in a 20 ms budget on a companion computer, so
+# nothing here should quietly depend on a GPU being present.

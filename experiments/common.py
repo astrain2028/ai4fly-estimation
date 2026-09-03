@@ -97,6 +97,20 @@ ARMS = [
     "combined",    # 9  the health model with an adaptive multiplier on R
 ]
 
+# models/doubt is deliberately absent from that list, and models/mmae cannot
+# be in it -- a bank of filters is not a measurement model and replaces the
+# UKF rather than plugging into one. Both are still runnable, by naming them:
+#
+#     python experiments/bakeoff.py doubt mmae
+#
+# doubt was measured indistinguishable from combined across all seven columns
+# of the bakeoff, which is correct rather than disappointing: those are all
+# fault modes it was trained on, so its epistemic term stays near its
+# in-distribution level and the multiplier keeps its ordinary speed. Its one
+# measured win is on scale_error, a mode held out of training. Enumerating it
+# by default would put a near-duplicate row in every table for a result that
+# only appears outside them.
+
 LABELS = {
     "fixed": "analytic + best const R",
     "plain": "plain network",
@@ -107,6 +121,7 @@ LABELS = {
     "ensemble": "ensemble of 5",
     "health": "health-conditioned",
     "combined": "combined",
+    "doubt": "doubt-driven",
 }
 
 # Arms too slow to give the full sweep. Experiments cut their run count and
