@@ -1,0 +1,77 @@
+arm,mode,moment,trained,severity,speed_rmse,nis,nees
+analytic + best const R,none,none,True,0,0.00519421,2.9524,1.91868
+adaptive R (Mehra),none,none,True,0,0.00512013,2.94178,2.35738
+health-conditioned,none,none,True,0,0.00761175,1.94789,1.77996
+combined,none,none,True,0,0.00760985,1.94385,1.77734
+analytic + best const R,bias,first,True,0.5,0.00687074,3.19256,2.566
+adaptive R (Mehra),bias,first,True,0.5,0.0066747,3.00178,2.79286
+health-conditioned,bias,first,True,0.5,0.00774518,1.81015,1.52819
+combined,bias,first,True,0.5,0.00774306,1.80978,1.52771
+analytic + best const R,bias,first,True,1.5,0.0144859,4.88851,8.18202
+adaptive R (Mehra),bias,first,True,1.5,0.0129454,3.31974,5.06828
+health-conditioned,bias,first,True,1.5,0.00886659,1.66278,1.68413
+combined,bias,first,True,1.5,0.00886659,1.66278,1.68413
+analytic + best const R,bias,first,True,3,0.0275549,10.4715,27.4095
+adaptive R (Mehra),bias,first,True,3,0.0194865,4.04023,7.63449
+health-conditioned,bias,first,True,3,0.0161989,1.66989,3.04813
+combined,bias,first,True,3,0.0161959,1.66004,3.14975
+analytic + best const R,drift,first,False,0.5,0.00582745,3.03933,2.13217
+adaptive R (Mehra),drift,first,False,0.5,0.00573718,2.97364,2.52257
+health-conditioned,drift,first,False,0.5,0.00713754,1.90124,1.55443
+combined,drift,first,False,0.5,0.00713856,1.89706,1.55351
+analytic + best const R,drift,first,False,1.5,0.00941534,3.6186,4.00552
+adaptive R (Mehra),drift,first,False,1.5,0.00910531,3.13609,3.66483
+health-conditioned,drift,first,False,1.5,0.00809302,1.86438,1.77542
+combined,drift,first,False,1.5,0.00809877,1.86071,1.77399
+analytic + best const R,drift,first,False,3,0.0165086,5.50102,10.4314
+adaptive R (Mehra),drift,first,False,3,0.0137932,3.40027,5.14674
+health-conditioned,drift,first,False,3,0.0119685,1.87462,3.25622
+combined,drift,first,False,3,0.0120739,1.84059,3.20327
+analytic + best const R,scale_error,first,False,0.5,0.0522551,30.3615,97.0307
+adaptive R (Mehra),scale_error,first,False,0.5,0.0310821,6.92873,16.9222
+health-conditioned,scale_error,first,False,0.5,0.0308348,2.17279,13.5738
+combined,scale_error,first,False,0.5,0.0320915,1.92481,12.6842
+analytic + best const R,scale_error,first,False,1.5,0.155753,245.988,858.814
+adaptive R (Mehra),scale_error,first,False,1.5,0.090363,36.9834,119.028
+health-conditioned,scale_error,first,False,1.5,0.131569,4.86885,107.034
+combined,scale_error,first,False,1.5,0.127123,4.10897,62.8008
+analytic + best const R,scale_error,first,False,3,0.311215,971.449,3430.39
+adaptive R (Mehra),scale_error,first,False,3,0.183606,138.458,461.48
+health-conditioned,scale_error,first,False,3,0.27843,23.1397,637.835
+combined,scale_error,first,False,3,0.259317,13.851,220.593
+analytic + best const R,noise_inflation,second,True,0.5,0.0055958,3.35361,2.0759
+adaptive R (Mehra),noise_inflation,second,True,0.5,0.00543504,2.99183,2.38303
+health-conditioned,noise_inflation,second,True,0.5,0.00807054,2.22455,1.92597
+combined,noise_inflation,second,True,0.5,0.00795265,2.1531,1.87296
+analytic + best const R,noise_inflation,second,True,1.5,0.00830603,6.5613,3.4501
+adaptive R (Mehra),noise_inflation,second,True,1.5,0.00670666,3.37359,2.58046
+health-conditioned,noise_inflation,second,True,1.5,0.0115096,4.18047,3.00179
+combined,noise_inflation,second,True,1.5,0.00934662,2.48885,1.95957
+analytic + best const R,noise_inflation,second,True,3,0.0140733,17.386,8.16085
+adaptive R (Mehra),noise_inflation,second,True,3,0.00847379,4.64111,3.0932
+health-conditioned,noise_inflation,second,True,3,0.0179639,10.1826,5.61147
+combined,noise_inflation,second,True,3,0.01148,3.02419,2.27262
+analytic + best const R,stuck,neither,False,0.1,0.0261459,11.8048,34.3787
+adaptive R (Mehra),stuck,neither,False,0.1,0.0290402,4.41903,12.8906
+health-conditioned,stuck,neither,False,0.1,0.0280115,4.27699,11.2403
+combined,stuck,neither,False,0.1,0.0322776,2.60837,7.73253
+analytic + best const R,stuck,neither,False,0.3,0.100136,136.017,474.85
+adaptive R (Mehra),stuck,neither,False,0.3,0.0853177,5.42986,275.175
+health-conditioned,stuck,neither,False,0.3,0.0713633,17.5334,44.5281
+combined,stuck,neither,False,0.3,0.084084,4.77849,22.5391
+analytic + best const R,stuck,neither,False,0.5,0.156469,254.93,897.369
+adaptive R (Mehra),stuck,neither,False,0.5,0.178897,5.76676,931.83
+health-conditioned,stuck,neither,False,0.5,0.146999,15.3551,221.118
+combined,stuck,neither,False,0.5,0.11039,4.74725,30.7071
+analytic + best const R,dropout,neither,False,0.1,0.00543856,2.94663,2.01496
+adaptive R (Mehra),dropout,neither,False,0.1,0.00535523,2.94854,2.43792
+health-conditioned,dropout,neither,False,0.1,0.00786725,1.94092,1.8656
+combined,dropout,neither,False,0.1,0.00786596,1.93735,1.86388
+analytic + best const R,dropout,neither,False,0.3,0.0060623,2.94267,2.27004
+adaptive R (Mehra),dropout,neither,False,0.3,0.00601593,2.95957,2.68688
+health-conditioned,dropout,neither,False,0.3,0.00828056,1.96944,2.05307
+combined,dropout,neither,False,0.3,0.00829651,1.95782,2.04693
+analytic + best const R,dropout,neither,False,0.5,0.00706731,2.96692,2.74729
+adaptive R (Mehra),dropout,neither,False,0.5,0.00723913,2.98777,3.23802
+health-conditioned,dropout,neither,False,0.5,0.009838,1.96727,2.57511
+combined,dropout,neither,False,0.5,0.00983268,1.95153,2.55951

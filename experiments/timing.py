@@ -64,18 +64,27 @@ def _load(path, name):
     return module
 
 
-def time_arm(measure, wide_module=None, R=None):
-    """Median milliseconds per filter step, and the spread across repeats."""
+def time_arm(measure, R=None):
+    """Median milliseconds per filter step, and the spread across repeats.
+
+    How wide the filter has to be is asked of the arm rather than passed in.
+    An earlier version took the state size as an argument and was called with
+    7 for everything in common.ARMS -- which was right until health and
+    combined joined that list, after which it built a seven-entry state for a
+    model that reads thirteen and died indexing past the end. load_arm already
+    attaches n_states and filter_settings to arms that need them, so asking
+    the arm cannot fall out of step with what ARMS contains.
+    """
     run, meas, truth = make_run(0)
     readings = np.column_stack([meas["left_encoder"], meas["right_encoder"],
                                 meas["gyro"]])
 
-    if wide_module is not None:
-        Q_use, P_use = wide_module.filter_settings(Q, P0)
-        start = np.zeros(wide_module.N_STATES)
+    n_states = getattr(measure, "n_states", 7)
+    if n_states > 7:
+        Q_use, P_use = measure.filter_settings(Q, P0)
     else:
         Q_use, P_use = Q, P0
-        start = np.zeros(7)
+    start = np.zeros(n_states)
     start[:5] = truth[0, :5]
 
     per_repeat = []
@@ -113,19 +122,26 @@ def main():
     entries = []
     for name in ARMS:
         try:
-            entries.append((LABELS[name], load_arm(name), None, 7))
+            measure = load_arm(name)
+            entries.append((LABELS[name], measure,
+                            getattr(measure, "n_states", 7)))
         except Exception:
             pass
 
-    for folder, label in [("health", "health-conditioned"),
-                          ("combined", "combined")]:
+    # Arms that are not in common.ARMS. doubt and layered are measurement
+    # models and load the ordinary way; mmae is a bank of filters and replaces
+    # the UKF rather than plugging into one, so it is not timed here -- see
+    # its own self-test.
+    for folder, label in [("doubt", "doubt-driven"), ("layered", "layered")]:
         path = ROOT / "models" / folder / "measurement.py"
         if not path.exists():
             continue
         try:
             module = _load(path, "timing_" + folder)
-            entries.append((label, module.load_measurement_model(), module,
-                            module.N_STATES))
+            measure = module.load_measurement_model()
+            measure.n_states = module.N_STATES
+            measure.filter_settings = module.filter_settings
+            entries.append((label, measure, module.N_STATES))
         except Exception as problem:
             print("  (%s unavailable: %s)" % (label, str(problem)[:60]))
 
@@ -136,8 +152,8 @@ def main():
           % ("", "states", "sigma pts", "median ms", "spread", "of budget"))
     print("-" * 76)
 
-    for label, measure, module, n_states in entries:
-        median, low, high = time_arm(measure, module, R)
+    for label, measure, n_states in entries:
+        median, low, high = time_arm(measure, R)
         spread = high - low
         flag = " *" if spread > 0.5 * median else ""
         print("%-24s %7d %10d %10.3f %9.3f%s %8.0f%%"

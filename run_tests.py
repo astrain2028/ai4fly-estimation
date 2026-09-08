@@ -47,7 +47,13 @@ TESTS = [
     "models/health/measurement.py",
     "models/combined/measurement.py",
     "models/doubt/measurement.py",
+    "models/layered/measurement.py",
     "models/mmae/measurement.py",
+    "quad_sim/dynamics.py",
+    "quad_sim/trajectories.py",
+    "quad_sim/sensors.py",
+    "quad_sim/faults.py",
+    "quad_sim/measurement.py",
 ]
 
 # Minutes each, and they retrain models or sweep parameters. Worth running
@@ -70,7 +76,12 @@ SLOW = [
     "experiments/timing.py",
     "experiments/tune.py",
     "experiments/bakeoff.py",
+    "experiments/moments.py",
+    "experiments/sensitivity.py",
     "experiments/figures.py",
+    "quad_sim/linearity.py",
+    "quad_sim/make_dataset.py",
+    "quad_sim/train.py",
 ]
 
 TIMEOUT = 900
