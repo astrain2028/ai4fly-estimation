@@ -39,9 +39,14 @@ constraint this project works under. A bank needs one hypothesis per fault,
 and six degradation modes across three channels at continuous severity has no
 finite bank. And a bank costs N filters, where augmenting health into the
 state costs one wider filter: sigma points scale as 2n+1, so seven states to
-thirteen is fifteen points to twenty-seven, under a factor of two. Against a
-bank of even a dozen hypotheses that is an order of magnitude, which is the
-difference between fitting the 20 ms available at 50 Hz and not.
+thirteen is fifteen points to twenty-seven, under a factor of two.
+
+Measured rather than asserted, since the assertion came first and was wrong.
+`models/mmae` costs 0.779 ms per hypothesis; `models/health` costs 1.502 ms in
+total. A dozen hypotheses is therefore about seven times the augmented filter,
+not the order of magnitude claimed here before the arm existed. The argument
+survives the correction, and the correction is the reason the baseline was
+built.
 
 A continuous health variable is also a quantity the filter can carry
 natively, and it admits partial degradation,
@@ -245,6 +250,37 @@ position relative to the training distribution rather than residual structure
 extrapolating, whereas low epistemic alongside large residuals indicates the
 sensor.
 
+That argument has a hole in it, found by building the thing. **An epistemic
+term measures novelty in the model's inputs, and a sensor fault does not move
+the inputs.** The vehicle is driving at a speed the model has seen a thousand
+times; only the reading is wrong. So on every arm whose inputs are the vehicle
+state — gp, bhr with Laplace, the ensemble — no epistemic term can see a fault
+at all, however well calibrated it is. This is the same arithmetic as
+`∂h/∂m = 0`, one level up: the reason health has to be an *input* is the reason
+a novelty score over the state cannot substitute for it.
+
+The health-conditioned model is the one exception, and only because of a
+feedback path. Six of its eleven inputs are health levels *the filter itself
+estimates and feeds back*. Training covers severities to 3.0, and nothing stops
+the update driving an estimate past that while trying to explain a fault the
+model cannot represent — measured at 9.19 on `scale_error`. That is genuine
+input-space novelty, so the question the term can answer is not "is this fault
+familiar", which is unanswerable, but "is this health level familiar", which is
+not.
+
+So the honest division of labour is three-way, and only the first row is what
+epistemic uncertainty is for:
+
+| signal read | mechanism | owns |
+|---|---|---|
+| novelty in **input** space | Laplace, GP, ensemble | unfamiliar operating *conditions* |
+| innovation **direction** | health conditioning | mean-shifting faults |
+| innovation **magnitude** | covariance matching | variance faults, including unseen |
+
+Test 3 below lives in the first row. The held-out fault experiment lives in the
+third, which is why covariance matching is the fallback there and epistemic
+uncertainty offers nothing.
+
 De Lucas Álvarez et al. [16] report the closest empirical test of that claim.
 Training a heteroscedastic correction to gyro measurements and taking the
 epistemic term from an ensemble of five networks, they inject degradation at
@@ -344,7 +380,7 @@ empirical.
 | `robot/trajectories.py` | Command profiles and rollout: a deterministic reference serpentine, and band-limited randomised episodes for Monte Carlo generation |
 | `robot/sensors.py` | Healthy sensor models: quantised wheel encoders and a biased gyro, with state-dependent noise |
 | `robot/faults.py` | Degradation modes applied to readings after the fact: bias, drift, variance inflation, scale error, stuck, dropout, on a continuous severity scale |
-| `robot/ukf.py` | Unscented Kalman filter over `[x, y, heading, speed, turn_rate]`, returning innovations and their covariances, accepting a per-step measurement covariance, and notifying measurement models that adapt online |
+| `robot/ukf.py` | Unscented Kalman filter over `[x, y, heading, speed, turn_rate, accel, turn_accel]`, returning innovations and their covariances, accepting a per-step measurement covariance, and notifying measurement models that adapt online. Takes its motion and measurement models as arguments, which is why `quad_sim` reuses it unchanged. Carries any state entries past the seventh forward untouched — that is where health lives |
 | `models/fixed/measurement.py` | Control arm: the analytic measurement model with a constant covariance tuned by covariance matching |
 | `models/plain/train.py` | Point-prediction baseline: state to sensor readings, mean squared error, no uncertainty output |
 | `models/resnet/train.py` | The same objective through residual blocks: a capacity control isolating depth from every other difference |
@@ -352,18 +388,41 @@ empirical.
 | `models/gp/train.py` | Gaussian process measurement model: epistemic uncertainty from the kernel, with a single homoscedastic noise term |
 | `models/bhr/train.py` | Heteroscedastic model: predicts a mean and a state-dependent variance per sensor, trained in the Gaussian natural parameterisation |
 | `models/ensemble/train.py` | Five heteroscedastic models from different initialisations; predictive variance splits into within-member noise and between-member disagreement |
+| `models/health/train.py` | The thesis: learns `h(x, m)` and `R(x, m)` with health among the inputs. Architecturally BHR with eleven inputs instead of five — it imports BHR's loss and training loop rather than copying them |
+| `models/health/measurement.py` | The thirteen-state filter: six health entries, a constraint keeping them non-negative, and the widened `Q` and `P0` |
+| `models/combined/measurement.py` | Health plus an adaptive multiplier on `R`, for the fault family health structurally cannot see |
+| `models/layered/measurement.py` | The same two mechanisms added rather than multiplied, so the floor is `max(0, ·)` instead of a tuned constant. Four constants become one |
+| `models/doubt/` | Laplace on the health model, with the epistemic term setting how fast the adaptive layer may move. Kept out of `common.ARMS` — see the note there |
+| `models/mmae/measurement.py` | Multiple-model adaptive estimation: a bank of filters, one per failure hypothesis, blended by posterior probability. The classical baseline, and complementarity by enumeration |
 | `models/*/measurement.py` | Each arm on one interface: states in, readings out, and a per-step covariance where the arm has one |
-| `robot/make_dataset.py` | Regenerates the dataset, with sensor noise growth, encoder resolution, and vehicle calibration error as parameters |
+| `robot/make_dataset.py` | Regenerates the healthy dataset, with sensor noise growth, encoder resolution, and vehicle calibration error as parameters |
+| `robot/make_faulted.py` | The same with degraded sensors and labelled severity, per sample rather than per run so a fault can arrive partway through |
 | `models/bhr/laplace.py` | Laplace posterior over the heteroscedastic model's last layer: epistemic uncertainty at a single forward pass, prior precision chosen by evidence |
 | `experiments/common.py` | Shared filter settings, arm registry, and scoring, so no experiment can quietly choose its own baseline |
+| `experiments/bakeoff.py` | Every arm, one seed set, one severity ladder. Writes `results/bakeoff.csv` per seed, before averaging, because a mean cannot be un-averaged later |
+| `experiments/moments.py` | The taxonomy as a prediction about faults nobody trained on, written down before the run |
+| `experiments/complementarity.py` | The two mechanisms separated by what they read: direction against magnitude |
+| `experiments/heldout.py` | Trained on two fault modes, scored on four held out — the test that flatters least |
+| `experiments/redundancy.py` | How many broken sensors three can survive, and what a fault arriving mid-run costs |
+| `experiments/sensitivity.py` | One question per tuned constant: does halving or doubling it change any conclusion |
+| `experiments/timing.py` | Cost per filter step with warmup, repeats and a median, and a star on any row too variable to quote |
+| `experiments/figures.py` | The figures, drawn from the csv rather than recomputed, so a figure cannot disagree with its table |
 | `experiments/calibration.py` | Test 1: what a hand-written measurement model is worth when the vehicle differs from its specification |
 | `experiments/heteroscedasticity.py` | Test 2: when a state-dependent covariance starts earning its cost, swept from homoscedastic upward |
 | `experiments/envelope.py` | Test 3: whether the model reports its own ignorance outside the states it was trained on, and at what cost |
 | `experiments/tune.py` | Searches process and measurement covariances against both moments of the chi-square criterion |
-| `experiments/healthy.py` | Every arm on identical runs with no degradation: accuracy, NIS and NEES with both moments, and cost per filter step |
-| `experiments/degradation.py` | Every arm under graded sensor degradation: whether each arm's claimed noise tracks the real noise |
-| `data/robot_data.csv` | 100 runs of 20 s at 50 Hz (100,000 rows): state, true wheel rates, sensor readings, and the noise level that produced each reading |
+| `experiments/healthy.py` | Every arm on identical runs with no degradation |
+| `experiments/degradation.py` | Every arm under graded sensor degradation |
+| `quad_sim/` | The same formulation on quadcopter attitude, where the measurement map is genuinely nonlinear. Six states, nine channels, gravity and north read through a rotation matrix |
+| `quad_sim/linearity.py` | The gating question, asked before anything is trained: how much of this map can a linear fit capture |
+| `results/` | The sweeps as csv, per seed, and the figures drawn from them |
+| `data/robot_data.csv` | 100 runs of 20 s at 50 Hz: state, true wheel rates, sensor readings, and the noise level that produced each reading |
 | `data/robot_data_sample.csv` | The first two runs, for inspection without loading the full file |
+
+Model weights and the faulted datasets are **not** in the repository — the
+generator is the artefact worth keeping rather than its output. That makes
+`requirements.txt` load-bearing, since every learned arm has to be retrained
+from source before it will run.
 
 Each row carries a `run` column. Splits must be made by run rather than by
 row: the gyro bias is drawn once per run and shared by every sample in it, so
@@ -375,6 +434,19 @@ A ground robot serves as the controlled setting: known kinematics, known
 sensor geometry, and a redundant suite — three channels constraining two
 quantities — so that health is observable and cross-channel disagreement is
 meaningful.
+
+Its measurement map is also exactly linear, which was discovered rather than
+designed and which bounds what it can demonstrate. `quad_sim/` exists for the
+half it cannot reach: nine channels constraining six attitude states, with
+gravity and magnetic north read through a rotation matrix. The two simulators
+share the filter, the covariance algebra and the fault taxonomy, and differ in
+whether `h` is a matrix.
+
+![complementarity](results/complementarity.png)
+
+Each mechanism owns one fault family. Health conditioning is below adaptive on
+the left panel and above it on the right; the crossing is the claim, and
+`combined` tracks the lower of the two in both.
 
 ```bash
 python robot/dynamics.py        # property-based verification of the motion model
@@ -391,12 +463,28 @@ python models/ensemble/train.py # five heteroscedastic models
 
 python models/bhr/laplace.py    # epistemic term, fitted after training
 
+python robot/make_faulted.py 500  # degraded runs with labelled severity
+python models/health/train.py     # the health-conditioned model
+
 python experiments/common.py             # which arms are trained and ready
-python experiments/healthy.py            # all arms, no degradation
-python experiments/degradation.py        # all arms, sensor going bad
+python experiments/bakeoff.py            # every arm, one seed set, one ladder
+python experiments/figures.py            # the figures, from results/bakeoff.csv
+python experiments/moments.py            # does moment order predict unseen faults?
+python experiments/sensitivity.py        # which tuned constants actually matter
+python experiments/timing.py             # cost per filter step, properly measured
+python experiments/heldout.py            # fault modes never trained on
+python experiments/redundancy.py         # double faults, and faults arriving late
 python experiments/calibration.py        # test 1: is the map right?
 python experiments/heteroscedasticity.py # test 2: is the noise structure right?
 python experiments/envelope.py           # test 3: does it know what it does not know?
+
+python quad_sim/linearity.py    # is the quad map nonlinear enough to matter?
+python quad_sim/make_dataset.py 400
+python quad_sim/train.py        # network against least squares, per channel
+python quad_sim/measurement.py  # layered, on a map that is actually curved
+
+python run_tests.py             # every self-test above, in dependency order
+python run_tests.py --all       # including the slow ones
 ```
 
 Fusing the gyro with the encoder difference recovers turn rate to 0.0083
@@ -483,10 +571,23 @@ state-conditioned covariance is for.
 
 ## Results
 
-Seven measurement models on one interface, evaluated by three experiments
-that each isolate a single mechanism. Organising by mechanism rather than by
-scenario is deliberate: the question is which component earns its compute, and
-only a design that varies one thing at a time can answer it.
+Twelve arms on one interface, across two simulators, organised by mechanism
+rather than by scenario. The question is which component earns its compute,
+and only a design that varies one thing at a time can answer it.
+
+The arms divide by what they read, and that division explains more than the
+list does:
+
+| reads | arms | can respond to a fault? |
+|---|---|---|
+| the input | analytic, plain, resnet, gp, bhr, ensemble | no, ever |
+| innovation **direction** | health, mmae | mean-shifting faults |
+| innovation **magnitude** | adaptive | any fault, including unseen |
+| more than one | combined, doubt, layered | see below |
+
+The first row is not six failures. It is one fact appearing six times: a
+fault arrives in the measurement, those models take the state as input, and
+the state does not change when a sensor breaks. No architecture escapes it.
 
 **Healthy, correctly calibrated.** Twenty runs, every arm given the best
 constant covariance available to it.
@@ -563,13 +664,160 @@ NEES outside the envelope is poor for all three. The epistemic term keeps
 innovations honest without making the state estimate correct: knowing that
 one is guessing is not the same as guessing well.
 
-**What is not yet measured.** Faults reach the filter through the
-measurement, while every learned arm takes the state as its input, so a
-degraded sensor leaves their predictions unchanged — confirmed directly, with
-the learned covariance flat across a fourfold change in true noise while the
-adaptive arm tracked it to within five per cent. Closing that requires health
-in the state, which requires training data with graded fault severities.
-Until then the fault results describe the classical baseline only.
+**Test 4, which mechanism owns which fault?** `experiments/bakeoff.py` runs
+every arm on one set of seeds at one ladder of severities, because the earlier
+experiments each chose their own and a ranking stitched from four populations
+is not a ranking. Left encoder, severity 3.0:
+
+| speed error, m/s | bias | noise inflation |
+|---|---|---|
+| analytic + best const | 0.0276 | 0.0141 |
+| adaptive R *(magnitude)* | 0.0195 | **0.0085** |
+| health-conditioned *(direction)* | **0.0162** | 0.0180 |
+| combined *(both)* | **0.0162** | 0.0115 |
+
+Each single-mechanism arm wins its own column and loses the other's, and
+health on a variance fault is *worse than doing nothing*. That is not a
+training shortfall. A noise fault leaves the expected reading exactly where it
+was, so `∂h/∂m` is zero, so the state-measurement covariance `P_mz` is zero,
+and the update has nothing to multiply. Measured: health estimates 0.29
+against a true severity of 3.0.
+
+So the fault taxonomy and the method taxonomy turn out to be the same
+taxonomy, indexed by moment order. A Kalman update is a first-moment operation
+and reads direction; covariance matching squares its innovations and reads
+magnitude. A bias perturbs the first moment of the measurement distribution;
+noise inflation perturbs the second. The pairing is forced, and it is
+derivable before any experiment is run.
+
+The calibration result is stronger than the accuracy one. Combined holds NIS
+between 1.66 and 3.02 across all seven conditions against a target of 3, where
+health alone reaches 10.18 on noise and the analytic model 17.39. On a vehicle
+with no ground truth that is the half that survives, since NEES needs a true
+state nobody has.
+
+The clearest evidence that the two mechanisms are complementary rather than
+redundant is a non-event: on every bias condition, `combined` is identical to
+`health` to four decimals and its multiplier sits at its floor. Health absorbs
+the fault and the adaptive layer correctly does nothing.
+
+**Does moment order predict faults nobody trained on?**
+`experiments/moments.py` writes the prediction down first, then runs all six
+modes. Three of four testable modes went as predicted. `drift` is the result
+worth having — never in training, and health won it exactly as first-moment
+classification requires.
+
+`scale_error` did not, and the reason turned out to be instructive rather than
+fatal: see below.
+
+**Adding variances instead of multiplying them.** `models/combined` scales the
+learned covariance by a multiplier, `R = c · R_model`. `models/layered`
+adds instead:
+
+    R = R_aleatoric(x, m) + R_epistemic(x, m) + R_unmodelled
+
+with the third estimated as Mehra estimated it — what the innovations turned
+out to be, minus the scatter the filter already predicted, minus what the model
+claimed. Two things follow. The floor stops being a tuned constant and becomes
+`max(0, ·)`, because a variance nobody has accounted for cannot be negative.
+And four constants become one.
+
+| severity 3.0 | combined | NIS | layered | NIS |
+|---|---|---|---|---|
+| bias | 0.0162 | 1.66 | 0.0154 | 1.47 |
+| noise inflation | 0.0115 | 3.02 | 0.0097 | 2.58 |
+| drift | 0.0121 | 1.84 | 0.0120 | 1.83 |
+| **scale_error** | 0.2562 | 19.74 | **0.0266** | **2.92** |
+
+It also fixes the mode that broke the moment-order prediction, and without
+retraining — which points at the covariance rather than at training coverage.
+On `scale_error` the health estimate is driven to about 9 against a training
+ceiling of 3, so `R_model` is badly wrong, and multiplying a wrong covariance
+by a bounded factor leaves it wrong. 1.551 ms against combined's 1.554.
+
+**Cost per filter step**, measured with warmup, repeats and a median, because
+the same arm has been recorded at 23, 29, 96 and 567 ms on one machine in one
+day:
+
+| | ms/step | of a 20 ms budget |
+|---|---|---|
+| analytic | 0.590 | 3% |
+| adaptive | 0.624 | 3% |
+| heteroscedastic | 1.190 | 6% |
+| health / combined / layered | ~1.55 | 8% |
+| MMAE, 7 hypotheses | 5.450 | 27% |
+| Gaussian process | 14.550 | 73% |
+
+MMAE costs 0.779 ms per hypothesis and scales linearly in them; augmenting
+health costs one wider filter regardless of how many fault modes are named,
+because moment order says two health states per sensor cover a whole family.
+Covering all six modes on three channels would need eighteen hypotheses,
+around 14 ms, and that is before the flight stack.
+
+**How much of this rests on tuning?** `experiments/sensitivity.py` asks whether
+halving or doubling each constant changes anything. Four of six do not,
+including `HEALTH_PROCESS_NOISE` at 0% — which had been blamed for the onset
+degradation and repeatedly slated for a re-sweep. `HEALTH_START_SPREAD` at 31%
+and `WINDOW` at 17% are the two that matter, and neither had been suspected.
+
+### What the ground robot cannot test
+
+Its measurement map is **exactly linear**. Superposition holds to 1e-14; the
+whole thing is a three-by-two matrix, six numbers. An ordinary least-squares
+fit therefore beats the trained network on every channel by three to seven per
+cent, because a ReLU stack approximates a straight line with kinks that have
+to cancel.
+
+So whatever the learned arms buy here, it is not the ability to represent a
+hard function. It is having health among their inputs, which is a different
+argument. The learned *covariance* earns its place on this robot; the learned
+*map* cannot be shown to.
+
+`quad_sim/` is the same formulation on quadcopter attitude, where an
+accelerometer reads gravity through a rotation matrix and a magnetometer reads
+north through the same one. Six states, nine channels, twelve filter states
+once health is carried, twenty-five sigma points against the robot's
+twenty-seven — so cost is comparable and any difference is about the problem.
+
+`quad_sim/linearity.py` asks the gating question before anything is trained,
+because a network can fit a linear function too and training first would not
+distinguish the cases. The best linear map leaves **12.1×** the noise floor
+unexplained on `mag_x`. Trained:
+
+| channel | linear | network | network better |
+|---|---|---|---|
+| mag_x | 0.27716 | 0.02707 | **+90.2%** |
+| mag_z | 0.11355 | 0.02601 | +77.1% |
+| accel_z | 0.97327 | 0.26402 | +72.9% |
+| accel_x | 0.25915 | 0.26367 | −1.7% |
+| gyro_z | 0.01265 | 0.01448 | **−14.4%** |
+
+The win and loss ordering tracks the nonlinearity ranking almost exactly.
+Curved map, the network wins by 90%; straight map, it loses by 14% — and that
+14% is the entire ground-robot result reproduced as one row inside the quad
+study. One experiment, both signs.
+
+In the filter that is 1.156° to 0.521° on *healthy* flights, NIS 12.60 to
+8.45 against a target of 9. On the robot the healthy column is unwinnable by
+construction, since the simulator generates readings from the equations the
+analytic model uses. Here the analytic model is exact too and still loses,
+because the filter is what is approximate: a constant `R` cannot cover
+accelerometer noise that varies 4.2× across a run.
+
+### What is still open
+
+`stuck` and `dropout` fall outside the moment-order taxonomy — a frozen
+reading neither shifts the mean predictably nor widens the spread — and a
+three-line variance check may beat the learned machinery on the first of them.
+
+Nothing here detects when the posterior stops being approximately Gaussian,
+and degraded sensors are exactly where that is least safe.
+
+A fault arriving mid-run still costs `combined` about half again over the same
+fault present from the start, after retraining on transitions brought it down
+from 94%.
+
+And none of it has touched hardware, real logs, or SITL.
 
 ## References
 
