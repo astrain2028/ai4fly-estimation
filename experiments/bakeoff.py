@@ -1,7 +1,8 @@
 """
 Every arm, one set of runs, one ladder of severities.
 
-WHY THIS EXISTS
+Motivation
+----------
 
 common.py was written so that no experiment could choose its own filter
 settings, because before it existed one arm was using R = 0.15 while the rest
@@ -24,7 +25,8 @@ gets quoted that was never measured.
 This file is the single table. Same seeds, same severities, same channel,
 every arm, one run each.
 
-WHAT IS VARIED AND WHAT IS NOT
+Design
+------
 
 The fault is always on the left encoder. Which channel breaks is a separate
 question and redundancy.py answers it; holding it fixed here keeps the
@@ -37,7 +39,8 @@ model reading innovation direction and the other only to something reading
 magnitude. Faults outside the training set are heldout.py's subject, not this
 one's.
 
-WHAT TO READ OFF IT
+Interpretation
+--------------
 
 No arm should win everywhere. The analytic model must win when healthy,
 because the simulator generates readings from the equations that model uses,
@@ -60,7 +63,8 @@ named on the command line to run a subset:
     python experiments/bakeoff.py --quick         fewer seeds, fewer severities
     python experiments/bakeoff.py --channel=gyro  break a different sensor
 
-WHERE THE NUMBERS GO
+Output
+------
 
 Every run is written to results/bakeoff.csv, one row per arm per condition
 per seed, before anything is averaged. Printed tables are a summary of that

@@ -1,7 +1,8 @@
 """
 The health-conditioned measurement model, on a map that is actually nonlinear.
 
-WHAT IS DIFFERENT FROM THE GROUND ROBOT
+Relation to the ground robot
+----------------------------
 
 Everything about the formulation is the same: learn h(x, m) and R(x, m) where m
 is how degraded each device is, carry m as filter state, and let the covariance
@@ -21,7 +22,8 @@ So this is where the two halves of the claim can finally be separated:
 
 The robot could only test the second. This tests both.
 
-THE ARCHITECTURE IS WIDER, AND THAT IS NOT A FREE CHOICE
+Architecture
+------------
 
 The robot's model has 64 hidden units for a target that is a three-by-two
 matrix, which is enormous overkill -- and the deeper residual control was
@@ -33,7 +35,8 @@ so capacity plausibly is binding. 128 units rather than 64. That is a real
 difference between the two problems rather than a knob, but it should still be
 checked rather than assumed, which is what a capacity control is for.
 
-HETEROSCEDASTIC IN NATURAL PARAMETERS
+Parameterisation
+----------------
 
 Reused wholesale from models/bhr. The gradient pathology Seitzer et al.
 describe matters more here than in ordinary regression: under a plain

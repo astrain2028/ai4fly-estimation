@@ -1,21 +1,23 @@
 """
 Which of the tuned constants actually matter.
 
-WHY THIS EXISTS
+Motivation
+----------
 
-There are now eleven or so numbers in this project that somebody chose. Some
+There are now eleven or so hand-chosen constants in this project. Some
 were measured, some were searched, and some were picked because they seemed
 reasonable and never revisited. Individually each has a justification written
 next to it. Collectively they are the first thing a reviewer asks about, and
-"we tuned it" is not an answer when there are eleven of them.
+"it was tuned" is not an answer when there are eleven of them.
 
 The cheap version of the answer is not a sweep. It is one question per
 constant: does halving or doubling it change any conclusion? A constant whose
 value can move by a factor of four without moving the result needs no defence
-at all, and knowing which ones those are tells you where the remaining
+at all, and knowing which ones those are shows where the remaining
 defence has to go.
 
-WHAT IS AND IS NOT COVERED
+Scope
+-----
 
 Constants that only affect inference are testable here, because the arm can
 be rebuilt with a different value in a second.
@@ -26,7 +28,8 @@ retraining, about half an hour each. They are listed at the end as untested
 rather than quietly omitted, because an unlisted constant reads as one nobody
 thought about.
 
-HOW TO READ IT
+Interpretation
+--------------
 
 The "spread" column is the range of the metric across the three values, as a
 fraction of the nominal. Under about 5 per cent means the constant is not

@@ -10,18 +10,20 @@ input sits far from everything in the training set, no stored point speaks
 for it, and the GP says so by reporting a large spread. Uncertainty about
 its own knowledge comes free.
 
-WHAT IT DOES NOT GIVE
+Limitations
+-----------
 
 A standard GP has one noise number, learned once and applied everywhere. It
 cannot say "readings are noisier when the wheels spin fast" -- that is
 exactly the thing the heteroscedastic model exists to do. So the GP covers
 one half of what this project wants and not the other.
 
-KEEPING IT SMALL
+Sparse approximation
+--------------------
 
 Exact GP maths needs an n-by-n matrix, and n here is 80,000. That matrix
-would have 6.4 billion entries. So we keep a random handful of training
-points instead -- a few hundred -- and do the exact maths on those. Crude,
+would have 6.4 billion entries. A random subset of a few hundred training
+points is kept instead, and the exact maths is done on those. Crude,
 but it is real GP regression, and it is enough to see how the method
 behaves.
 """

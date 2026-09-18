@@ -1,7 +1,8 @@
 """
 Flights to estimate over.
 
-WHAT A RUN HAS TO CONTAIN
+Attitude coverage
+-----------------
 
 Enough attitude variation that the nonlinearity is actually exercised. A
 quadcopter hovering level is a linear problem -- around zero roll and pitch the
@@ -13,7 +14,8 @@ So the rates are driven hard enough to reach thirty or forty degrees of bank,
 which is ordinary for a quadcopter changing direction, and yaw is allowed to
 run right around.
 
-WHY THE RATES ARE SMOOTH RATHER THAN NOISE
+Rate profiles
+-------------
 
 Same reason the ground robot's speed is. A real vehicle is commanded by a
 controller with finite bandwidth, so its angular rates change over tenths of a
@@ -27,7 +29,8 @@ Here the rates come from a sum of a few sinusoids at different frequencies,
 which gives smooth, aperiodic, bounded motion with a controllable amount of
 energy at each timescale.
 
-GIMBAL LOCK
+Gimbal lock
+-----------
 
 Euler angles are singular at ninety degrees of pitch. Pitch is soft-limited
 well below that. A serious implementation would carry a quaternion; this one

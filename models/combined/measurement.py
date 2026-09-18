@@ -1,7 +1,8 @@
 """
 The health-conditioned model with an adaptive correction on top.
 
-WHY BOTH
+Motivation
+----------
 
 The two fault modes hide in different places, and the two methods read
 different things.
@@ -24,7 +25,8 @@ which is exactly what covariance matching has read since 1970. So the two
 methods are complementary by mechanism rather than by luck, and this file is
 the two of them in one measurement model.
 
-HOW THEY COMBINE
+Combination rule
+----------------
 
 The obvious arrangement is wrong. Both methods want to set R, and if the
 adaptive part estimates R outright it discards everything the model knew
@@ -86,7 +88,7 @@ BLEND = 0.05          # how fast the multiplier may move, per update
 # while costing calibration, and fixing the calibration gave the accuracy
 # back.
 #
-# So the floor at 1.0 is not a fudge. It says the adaptive layer is here to
+# So the floor at 1.0 is not arbitrary. It says the adaptive layer is here to
 # catch what the model did not see, not to second-guess what it did.
 LIMITS = (1.0, 25.0)
 

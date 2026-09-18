@@ -1,7 +1,8 @@
 """
 Loading a module by file path, in one place instead of fourteen.
 
-WHY THIS IS NEEDED AT ALL
+Motivation
+----------
 
 Every arm has a file called `measurement.py` and one called `train.py`, and
 the two simulators each have `dynamics.py`, `sensors.py`, `faults.py` and
@@ -11,7 +12,7 @@ which file started the process.
 
 That is not hypothetical. It happened, silently -- one arm was handed
 another's module, every number it produced was wrong in a way that looked
-plausible, and it cost an afternoon to find. Loading by explicit path under a
+plausible, and it was not caught for some time. Loading by explicit path under a
 unique name removes the ambiguity entirely.
 
 The alternative is to make the repository a package and use relative imports.

@@ -1,7 +1,8 @@
 """
 Three sources of ignorance, added rather than multiplied.
 
-WHAT IS WRONG WITH models/combined
+Limitation of models/combined
+-----------------------------
 
 The combined arm scales the learned covariance by a multiplier that
 covariance matching estimates online:
@@ -12,7 +13,7 @@ It works, and every awkward thing about it follows from that one choice of
 algebra. A multiplier cannot decompose, so there is no way to ask which
 mechanism claimed which part of the covariance -- and without that, nothing
 stops the two from correcting the same error twice. The floor at 1.0 exists
-to prevent it, and the floor is an empirical fudge: it was arrived at by
+to prevent it, and the floor is ad hoc: it was arrived at by
 noticing that letting the multiplier fall settles at 0.72 on healthy data,
 which fixes NIS from 1.98 to 3.08 and makes the estimate worse, 0.0074 to
 0.0097.
@@ -20,7 +21,8 @@ which fixes NIS from 1.98 to 3.08 and makes the estimate worse, 0.0074 to
 That is a real measurement and the floor is the right call given the form.
 But it is a patch on the form.
 
-VARIANCES ADD
+Additive decomposition
+----------------------
 
     R_total  =  R_aleatoric(x, m)  +  R_epistemic(x, m)  +  R_unmodelled
 
@@ -45,9 +47,10 @@ where spread is the sigma-point scatter of the predicted measurements, which
 is S minus whatever R went in. Everything on the right is already computed
 every step.
 
-WHAT THAT BUYS
+Consequences
+------------
 
-The floor stops being a fudge. It becomes max(0, .), because a variance that
+The floor stops being ad hoc. It becomes max(0, .), because a variance that
 has not been accounted for cannot be negative. Same behaviour, derived rather
 than tuned.
 
@@ -57,12 +60,13 @@ R_epi, so S is already large, so the residual goes to zero on its own and the
 adaptive layer correctly stands down. Note the sign is opposite to doubt's,
 and this one falls out of the algebra instead of being chosen.
 
-And it becomes attributable. At any step you can say how much of the
+And it becomes attributable. At any step it is possible to say how much of the
 covariance came from sensor noise, from model ignorance, and from something
 nobody modelled -- three diagnostic channels where a multiplier gives one
 opaque number.
 
-CONSTANTS REMOVED
+Tuned constants
+---------------
 
     combined:  WINDOW, BLEND, LIMITS low, LIMITS high        4
     doubt:     the two above plus DOUBT_GAIN, MAX_BLEND      6
@@ -251,4 +255,4 @@ if __name__ == "__main__":
     print("\n  NIS should sit near 3. The claim is not that this is more")
     print("  accurate -- it is that it reaches similar behaviour with one")
     print("  constant instead of four, and that the floor is arithmetic")
-    print("  rather than a number somebody chose.")
+    print("  rather than a hand-chosen number.")

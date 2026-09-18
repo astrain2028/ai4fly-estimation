@@ -5,7 +5,8 @@ The committed data/robot_data.csv had no script behind it, which meant it
 could not be regenerated or checked. This file is that script. Run with no
 arguments it reproduces the shipped dataset exactly, given the same seeds.
 
-WHY IT TAKES A NOISE-GROWTH ARGUMENT
+Noise growth
+------------
 
 The encoders get noisier the faster the wheels spin. How much noisier is set
 by one number in sensors.py, and that number decides how much there is for a
@@ -18,7 +19,8 @@ Sweeping that number is how to ask when a learned covariance starts being
 worth its cost, rather than asserting that it is. So the generator takes it
 as an argument instead of reading the module-level constant.
 
-A NOTE ON WHAT DILUTES IT
+Dilution
+--------
 
 Encoders count whole ticks, and that rounding contributes a fixed spread of
 about 0.0886 rad/s no matter what the wheel is doing. At low speeds that is

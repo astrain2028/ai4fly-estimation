@@ -1,7 +1,8 @@
 """
 Builds a dataset in which sensors are sometimes degraded, and says how.
 
-WHY A SEPARATE FILE
+Motivation
+----------
 
 make_dataset.py produces a healthy robot. Everything trained on it is blind to
 faults: the models take the state as their input, faults arrive in the
@@ -10,7 +11,8 @@ whether the sensor reporting it is fine or ruined. Putting sensor health into
 the state needs training data where health varies and is labelled, which is
 what this makes.
 
-TWO NUMBERS PER SENSOR, NOT ONE
+Two health levels per sensor
+----------------------------
 
 An earlier version of this file gave each sensor a single degradation level
 and a label saying which kind of fault it was. That does not work, and the
@@ -33,7 +35,8 @@ factor of three.
 So each sensor now carries two levels, and the model can move h for one and R
 for the other without either compromising the other.
 
-WHY SOME RUNS HAVE BOTH AT ONCE
+Joint faults
+------------
 
 If a bias level were only ever non-zero when the noise level was zero, the two
 inputs would be almost perfectly anti-correlated across the training set, and
@@ -42,7 +45,8 @@ Roughly a third of faulted runs therefore carry both kinds on the same
 channel, at independently drawn levels, purely so the two columns vary
 independently.
 
-HOW RUNS ARE ASSIGNED
+Run assignment
+--------------
 
 A third of runs are healthy. The rest degrade one channel, with each mode
 independently present or absent. Only one channel at a time: three sensors
@@ -50,7 +54,8 @@ constrain two quantities, so there is exactly one spare, and a single failure
 leaves the other two able to disagree with it. Two failed channels do not, and
 learning to separate them needs examples of every pair.
 
-WHEN THE FAULT ARRIVES
+Fault onset
+-----------
 
 Severity used to be constant within a run, which kept the label unambiguous
 and left a hole. A model trained that way has seen sensors that were already

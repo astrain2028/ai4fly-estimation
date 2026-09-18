@@ -1,5 +1,6 @@
 """
-TEST 2 -- IS THE NOISE STRUCTURE RIGHT?
+Test 2: structure of the measurement noise
+------------------------------------------
 
 Asks when a state-dependent noise model starts being worth its cost.
 
@@ -26,7 +27,8 @@ never handicapped: it always gets the best single value available to it,
 which is the average variance over the run. Beating a badly chosen constant
 would prove nothing.
 
-WHAT THIS DOES NOT COVER
+Limitations
+-----------
 
 Only the aleatoric half. The epistemic term answers a different question --
 whether the model has seen states like this before -- and inside the training

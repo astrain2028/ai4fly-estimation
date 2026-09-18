@@ -1,7 +1,8 @@
 """
 Faults the learned model has never seen.
 
-THE TEST THAT MATTERS MOST AND FLATTERS LEAST
+Motivation
+----------
 
 The health-conditioned model is trained on two kinds of degradation, bias and
 noise inflation. faults.py defines six. So the obvious question is what
@@ -22,7 +23,8 @@ why, and regardless of whether anyone has seen that failure before. It should
 therefore be roughly as good on an unfamiliar fault as on a familiar one,
 which is a property no learned model has.
 
-WHAT IS EXPECTED, SO THAT THE RESULT CAN DISAGREE
+Predictions
+-----------
 
     drift          a bias that grows during the run. Bias-like, so the model
                    may partly transfer, though it was trained on constants.

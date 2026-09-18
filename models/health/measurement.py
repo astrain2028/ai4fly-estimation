@@ -17,7 +17,8 @@ learns a weak version of each: it corrected 57 per cent of a bias and let the
 filter back off a ruined sensor by 16 per cent where a factor of three was
 called for.
 
-WHAT CHANGES IN THE FILTER
+Filter changes
+--------------
 
 Nothing, mechanically. The update is the same. What changes is that the
 sample points now spread over health as well as over position and speed, so

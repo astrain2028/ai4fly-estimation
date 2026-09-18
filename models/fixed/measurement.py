@@ -14,7 +14,7 @@ makes it addressable like any other arm.
 
 Worth remembering what it costs. It runs in microseconds, needs no training
 data, no GPU, and no Python at all -- it is a dozen lines of arithmetic that
-would port to C in an afternoon. Anything learned has to be better by enough
+would port to C with little effort. Anything learned has to be better by enough
 to justify replacing that.
 """
 

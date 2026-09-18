@@ -3,10 +3,11 @@ Things that go wrong with an IMU or a magnetometer.
 
 Kept separate from sensors.py for the same reason the ground robot keeps them
 apart: that file is the healthy vehicle and should stay that way, so "healthy"
-is never a flag that might get set wrong. It is simply what you get when this
+is never a flag that might get set wrong. It is simply the result when this
 file is not involved.
 
-FAULTS HAPPEN TO DEVICES, NOT TO AXES
+Device-level faults
+-------------------
 
 A three-axis accelerometer is one part. It warms up, loses calibration, comes
 loose from its mount, or sits in a vibration mode -- and when it does, all
@@ -17,7 +18,8 @@ each, six health states.
 That is the same count the ground robot ended up with, by a different route.
 There it was three sensors times two modes; here it is three devices times two.
 
-WHY BIAS IS COMMON-MODE
+Common-mode bias
+----------------
 
 A bias could be modelled as an arbitrary three-vector, drawn per run. That
 would be more realistic and would break the experiment, because a model given
@@ -30,7 +32,8 @@ failure mode -- a temperature-dependent offset affects a whole part similarly
 -- and it keeps the fault predictable from its label, which is what makes the
 learned correction meaningful rather than impossible.
 
-SEVERITY MEANS THE SAME THING ON EVERY DEVICE
+Severity scale
+--------------
 
 Severity 1 is trouble about the size of that device's own healthy noise. An
 accelerometer's noise is 0.21 m/s^2 and a magnetometer's is 0.018 unitless, so

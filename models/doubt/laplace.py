@@ -42,7 +42,8 @@ in-distribution explanation for a frozen sensor -- that is a sharper negative
 result than "it does badly", and it argues for a trivial frozen-reading test
 instead of anything learned.
 
-WHAT IS REUSED
+Implementation
+--------------
 
 Everything general lives in models/bhr/laplace.py: the feature extraction,
 the Gram matrix, the evidence-based choice of prior precision, and the

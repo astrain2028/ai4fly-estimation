@@ -1,12 +1,13 @@
 """
 The health model, its own doubt, and a multiplier that listens to it.
 
-WHAT THIS ADDS TO models/combined
+Relation to models/combined
+---------------------------
 
 The combined arm carries two mechanisms: a learned covariance conditioned on
 health, and an adaptive multiplier on top of it for the fault modes health
 cannot see. It works, and it has one clear weakness -- everything about how
-the multiplier behaves is a constant somebody chose. It may not fall below
+the multiplier behaves is a hand-chosen constant. It may not fall below
 1.0, it moves at 5 per cent per update, and it averages over a hundred steps
 before moving at all. Those were tuned once, against the steady state, and
 they are the same numbers whether the model is on ground it knows well or
@@ -20,7 +21,8 @@ the only thing left and its caution is pure lag.
 So the two constants become one signal. The model says how much it trusts
 itself; the multiplier moves in proportion to how little that is.
 
-WHY THE HEALTH MODEL IS THE ONE WHERE THIS CAN WORK
+Why the health model
+--------------------
 
 An epistemic term measures novelty in the model's INPUTS. On every other arm
 those are the five vehicle states, and a broken sensor does not change them
@@ -35,7 +37,8 @@ So the question the arm can ask is not "is this fault familiar", which is
 unanswerable, but "is this health level familiar", which is not. Those are
 different questions and only the second has ever been available.
 
-TWO USES, AND THEY ARE NOT THE SAME USE
+Two uses of the epistemic term
+------------------------------
 
 The epistemic variance is added to R, which is the ordinary thing to do with
 it and makes the filter appropriately unsure where the model is guessing.
@@ -43,9 +46,10 @@ it and makes the filter appropriately unsure where the model is guessing.
 It also sets how fast the multiplier may move, which is the part that is not
 ordinary. That is a hand-off: as the learned mechanism loses confidence, the
 classical one is allowed to take over, and the trigger is the model's own
-admission rather than a threshold somebody picked.
+admission rather than a hand-picked threshold.
 
-WHAT WOULD FALSIFY THE IDEA
+Falsification
+-------------
 
 If the filter never drives health outside its training range on faults the
 model cannot represent, the doubt never rises, the multiplier never speeds
@@ -69,7 +73,8 @@ from loader import load_module as _load
 
 
 health = _load(ROOT / "models" / "health" / "measurement.py", "health_for_doubt")
-health_train = _load(ROOT / "models" / "health" / "train.py", "health_train_for_doubt_m")
+health_train = _load(ROOT / "models" / "health" / "train.py",
+                     "health_train_for_doubt_m")
 base = _load(ROOT / "models" / "bhr" / "laplace.py", "bhr_laplace_for_doubt_m")
 
 N_STATES = health.N_STATES

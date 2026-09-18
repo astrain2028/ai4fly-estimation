@@ -1,7 +1,8 @@
 """
 A nine-channel IMU and magnetometer, with the noise a real one has.
 
-THE CHANNELS
+Channels
+--------
 
     accel_x/y/z    specific force in the body frame, m/s^2
     gyro_x/y/z     body angular rates, rad/s
@@ -13,7 +14,8 @@ ground robot rests on, with more room. There, three sensors constrained two
 quantities and exactly one channel could break before the problem became
 unsolvable.
 
-WHY THE NOISE IS NOT CONSTANT
+State-dependent noise
+---------------------
 
 A MEMS accelerometer on a quadcopter does not have a fixed noise floor. Most of
 what it reports beyond gravity is airframe vibration, and vibration tracks how

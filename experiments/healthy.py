@@ -4,7 +4,8 @@ Every arm on healthy data, same runs, same settings, one table.
 This is the control condition. Nothing is broken, no sensor is degraded, and
 the only question is how well each measurement model does the ordinary job.
 
-WHAT TO LOOK AT
+Interpretation
+--------------
 
 Accuracy is the obvious column and the least interesting one. Every arm is
 approximating a relationship that is known exactly, so they should all be

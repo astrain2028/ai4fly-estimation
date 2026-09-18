@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 # The simulation lives in robot/. Find it relative to THIS file, so the
-# script works no matter which directory you run it from.
+# script works regardless of the working directory.
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "robot"))
 DATA = ROOT / "data" / "robot_data.csv"
@@ -71,7 +71,7 @@ def load_measurement_model(path=str(Path(__file__).parent / "baseline_model.pt")
         states = np.atleast_2d(states)[:, :len(INPUTS)]
         x = torch.tensor(states, dtype=torch.float32)
 
-        # no_grad because we only want the answer, not derivatives.
+        # no_grad because only the forward pass is needed, not derivatives.
         # Without it torch builds a graph for every sigma point and never
         # frees it.
         with torch.no_grad():

@@ -1,7 +1,8 @@
 """
 The layered arm, on the quadcopter.
 
-WHAT IS BORROWED AND WHAT IS NEW
+Reuse
+-----
 
 The estimator is borrowed whole. robot/ukf.py takes its motion model and its
 measurement model as arguments, so nothing about the unscented machinery cares
@@ -21,7 +22,8 @@ Six attitude states and six health levels, two per device. Twenty-five sigma
 points against the ground robot's twenty-seven, so the cost is comparable and
 any difference in the results is about the problem rather than the budget.
 
-WHY HEALTH HAS NO DYNAMICS
+Health dynamics
+---------------
 
 Same reason as on the robot. A device does not get better or worse because
 time passed, only because evidence arrived, so health is carried forward
@@ -29,7 +31,8 @@ untouched through the prediction and moves only in the update. That puts the
 entire burden of estimating it on the measurement model, which is where the
 argument lives.
 
-WHAT THIS PROBLEM TESTS THAT THE ROBOT COULD NOT
+Relation to the ground robot
+----------------------------
 
 The robot's measurement map is exactly linear, so its learned arms were never
 demonstrating that a network can represent a hard function -- linearity.py
@@ -64,8 +67,8 @@ def _load_borrowing(path, name, extra, shadows=()):
     and sensors.py, and two things go wrong if that is not handled.
 
     The first is sys.path: whichever directory comes first silently wins, which
-    is the collision common.py's load_arm was written to avoid and which cost
-    an afternoon the first time.
+    is the collision common.py's load_arm was written to avoid and which
+    went unnoticed the first time.
 
     The second is subtler and bit immediately. Python checks sys.modules before
     sys.path, so once quad_sim's `dynamics` is imported, no amount of path

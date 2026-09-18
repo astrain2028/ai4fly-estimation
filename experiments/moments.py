@@ -1,7 +1,8 @@
 """
 The thesis, stated as a prediction about faults nobody trained on.
 
-WHAT IS BEING CLAIMED
+Claim
+-----
 
 A Kalman update is a first-moment operation. It multiplies the innovation by
 a gain and adds, so it reads which way the innovation points and is deaf to
@@ -21,7 +22,8 @@ statement about any fault, including ones the model has never been trained on,
 because moment order is a property of what the fault does to the readings and
 not of what appeared in the training set.
 
-THE PREDICTION, WRITTEN DOWN BEFORE THE RUN
+Predictions
+-----------
 
     bias              first moment    trained on. health should win.
     drift             first moment    NOT trained on -- a bias that grows
@@ -41,21 +43,23 @@ THE PREDICTION, WRITTEN DOWN BEFORE THE RUN
                                       route -- samples are lost and the last
                                       is held.
 
-WHAT EACH OUTCOME WOULD MEAN
+Interpretation
+--------------
 
 If drift and scale_error pattern with bias despite never appearing in
 training, the taxonomy is doing real work: it predicted transfer to unseen
 faults from structure alone, and the claim is about moment order.
 
-If they do not, the claim is narrower -- something closer to "the two modes we
-happened to train on" -- and the paper has to say so. That would be a worse
+If they do not, the claim is narrower -- something closer to "the two modes present
+in training" -- and the paper has to say so. That would be a worse
 result and a more honest one, and it is better found here than in review.
 
 If stuck and dropout defeat everything alike, that is the boundary of the
 whole approach and belongs in the paper as a limitation rather than being left
 for a reviewer to find.
 
-WHY ONLY FOUR ARMS
+Arm selection
+-------------
 
 The learned arms that take only the vehicle state -- plain, resnet, gp, bhr,
 ensemble -- cannot respond to any fault at all, whatever its moment order,

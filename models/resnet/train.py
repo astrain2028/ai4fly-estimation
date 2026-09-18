@@ -2,7 +2,8 @@
 Trains a deeper network, built from residual blocks, on the same job as the
 plain baseline.
 
-WHY THIS ARM EXISTS
+Motivation
+----------
 
 The plain network is slightly worse than the formula written by hand, even
 though it is approximating a relationship we know exactly. Two explanations
@@ -26,7 +27,7 @@ import sys
 from pathlib import Path
 
 # The simulation lives in robot/. Find it relative to THIS file, so the
-# script works no matter which directory you run it from.
+# script works regardless of the working directory.
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "robot"))
 DATA = ROOT / "data" / "robot_data.csv"
@@ -82,7 +83,7 @@ class ResidualBlock(nn.Module):
 
     A normal layer has to produce the whole answer. This block only has to
     produce a *correction*, which is added to what came in. That matters when
-    you stack many of them: a block with nothing useful to add can settle on
+    many are stacked: a block with nothing useful to add can settle on
     outputting near zero, and the input passes through unchanged. Depth that
     is not needed costs little instead of getting in the way.
 

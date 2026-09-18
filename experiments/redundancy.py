@@ -5,7 +5,8 @@ Every fault experiment in this project so far has broken one channel, from
 the first sample to the last. Both of those are conveniences, and each hides
 a question the formulation makes a claim about.
 
-HOW MANY FAILURES CAN THREE SENSORS SURVIVE?
+Simultaneous failures
+---------------------
 
 The robot carries two encoders and a gyro, and they constrain two quantities:
 speed and turn rate. Three measurements for two unknowns leaves exactly one
@@ -21,7 +22,8 @@ information is not present. Worth testing rather than asserting, because a
 result that contradicts it would mean the redundancy argument in the README
 is wrong.
 
-WHAT HAPPENS WHEN A FAULT ARRIVES LATE?
+Late fault onset
+----------------
 
 Training severity is constant within a run, so the health model has only ever
 seen sensors that were already broken when the run began. A sensor that fails

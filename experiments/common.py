@@ -127,8 +127,8 @@ LABELS = {
 # Arms too slow to give the full sweep. Experiments cut their run count and
 # say so in the output rather than quietly leaving them out.
 #
-# The GP was in here until its cost turned out to be a mistake in our own
-# code rather than a property of the method: the predictive variance solved
+# The GP was in here until its cost turned out to be an implementation error
+# rather than a property of the method: the predictive variance solved
 # against a Cholesky factor with a general solver, refactorising a 1500x1500
 # matrix on every sigma point of every step. Using the triangular structure
 # took it from about 5,900 ms per step to 17. It now runs the same twenty
@@ -141,8 +141,8 @@ def load_arm(name):
 
     Loaded by full path under a unique module name. Every arm has a file
     called measurement.py and one called train.py, so a plain import would
-    hand one arm's module to another -- which happened, silently, and cost an
-    afternoon.
+    hand one arm's module to another. This happened once, silently, and
+    produced plausible but wrong results.
     """
     folder = ROOT / "models" / name
     spec = importlib.util.spec_from_file_location(
@@ -308,7 +308,7 @@ def two_moment(values, dof):
     """Chen's criterion: a consistent filter has to get both moments right.
 
     Average should be dof and spread should be 2*dof. Checking the average
-    alone is not enough -- we have already been bitten by a mean of 3.17
+    alone is not enough. A mean of 3.17 has already occurred here
     against a target of 3 while the spread was 7.2 against 6, because two
     channels were over-trusted and one under-trusted by amounts that
     cancelled in the sum and compounded in the square.

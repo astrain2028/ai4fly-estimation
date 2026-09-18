@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 # The simulation lives in robot/. Find it relative to THIS file, so the
-# script works no matter which directory you run it from.
+# script works regardless of the working directory.
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "robot"))
 DATA = ROOT / "data" / "robot_data.csv"

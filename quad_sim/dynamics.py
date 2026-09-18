@@ -1,7 +1,8 @@
 """
 Attitude kinematics for a quadcopter, which is where the nonlinearity lives.
 
-WHY THIS FOLDER EXISTS
+Motivation
+----------
 
 The ground robot's measurement map turned out to be exactly linear. Its
 encoders report
@@ -32,7 +33,8 @@ That makes this the setting where the learned-map question can actually be
 asked. Whether the answer is yes is measured in linearity.py, not assumed
 here.
 
-WHAT IS MODELLED AND WHAT IS NOT
+Scope
+-----
 
 Six states:
 

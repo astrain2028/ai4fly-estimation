@@ -6,7 +6,8 @@ expected reading, and the spread around it. That second number is what a
 filter needs for R, and it changes from moment to moment -- more noise when
 the wheels spin fast, less when they crawl.
 
-WHY NOT JUST ADD A SECOND OUTPUT
+Parameterisation
+----------------
 
 The obvious way is to predict mu and var directly and train on
 
@@ -64,7 +65,8 @@ def load_and_split(path=DATA, val_fraction=0.2, seed=0):
     rng.shuffle(runs)
     val_runs = runs[:int(len(runs) * val_fraction)]
     is_val = df["run"].isin(val_runs)
-    print("train: %d rows from %d runs" % ((~is_val).sum(), df[~is_val]["run"].nunique()))
+    print("train: %d rows from %d runs"
+          % ((~is_val).sum(), df[~is_val]["run"].nunique()))
     print("val:   %d rows from %d runs" % (is_val.sum(), df[is_val]["run"].nunique()))
     return df[~is_val], df[is_val]
 
@@ -100,7 +102,7 @@ def split_outputs(raw, freeze_spread=False):
 
 
 def to_mean_and_var(eta1, eta2):
-    """Back to the numbers we actually want."""
+    """Convert natural parameters to mean and variance."""
     var = -0.5 / eta2
     mean = eta1 * var
     return mean, var

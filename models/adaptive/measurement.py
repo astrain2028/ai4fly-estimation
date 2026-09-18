@@ -5,7 +5,8 @@ This is Mehra's idea from 1970, and it is the baseline any learned noise
 model has to justify itself against. It needs no training data, no network,
 and almost no arithmetic.
 
-HOW IT WORKS
+Method
+------
 
 The filter predicts how surprised it expects to be. That prediction is S, the
 innovation covariance, and it is built from two pieces:
@@ -23,7 +24,8 @@ on R. So:
 Take a window of recent innovations, average their outer products, subtract
 the part the state spread explains, and what is left is an estimate of R.
 
-WHY IT IS NOT ENOUGH
+Limitations
+-----------
 
 Two limitations, and both are the reason the rest of this project exists.
 

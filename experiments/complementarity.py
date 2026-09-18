@@ -1,7 +1,8 @@
 """
 Two mechanisms, each blind exactly where the other sees.
 
-THE CLAIM
+Claim
+-----
 
 A Kalman update reads the direction of its innovations. A bias shifts a
 reading, so it lives in that direction, and a measurement model told how
@@ -21,7 +22,8 @@ offset is known, and throwing it away costs accuracy.
 So this is not a horse race. It is a map of which mechanism owns which
 failure, and a demonstration that one filter can carry both.
 
-WHAT IS COMPARED
+Comparison
+----------
 
     analytic + constant R    no response to anything; the control
     adaptive R               reads innovation size only

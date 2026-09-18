@@ -12,7 +12,8 @@ target of 3, while NEES over the same steps stayed at 160 against a target of
 2. Better-calibrated uncertainty, no better estimate. Nothing rules out the
 same pattern here.
 
-TWO QUESTIONS, ONE FILE
+Questions addressed
+-------------------
 
 The first is accuracy under fault: with a sensor degraded, does the
 health-conditioned arm estimate speed and turn rate better than a filter that
@@ -25,7 +26,8 @@ map from data too, so it ought to inherit that -- but ought is not a
 measurement, and the case for putting it at the centre of a deployed system
 rests on it.
 
-WHY THE ARMS NEED DIFFERENT FILTERS
+Filter configuration
+--------------------
 
 The health arm carries ten states; everything else carries seven. The extra
 three are the health levels, which no other arm has anywhere to put. So each

@@ -5,7 +5,8 @@ for?
 The other two tests ask whether a learned model gets the right answer. This
 one asks whether it can tell when it is guessing.
 
-HOW THE QUESTION IS POSED
+Setup
+-----
 
 A model trained on every state the robot ever visits has no unfamiliar inputs
 to be uncertain about, so the question cannot be asked of it. Here the model
@@ -17,7 +18,8 @@ has never been shown it.
 That separation matters. Elsewhere in this project a rise in uncertainty
 could always be blamed on a sensor. Here it cannot.
 
-WHAT IS BEING COMPARED
+Comparison
+----------
 
     plain + constant R      no mechanism for doubt at all
     heteroscedastic         predicts noise, but not its own ignorance
@@ -29,7 +31,8 @@ The ensemble is the honest upper bound. If Laplace reaches a comparable
 separation at one forward pass, that is the argument. If it does not, the
 ensemble is simply better and the cost is what it costs.
 
-WHAT WOULD COUNT AS FAILING
+Failure criterion
+-----------------
 
 Three ways, all worth reporting.
 

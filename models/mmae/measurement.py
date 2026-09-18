@@ -1,7 +1,8 @@
 """
 Multiple-model adaptive estimation: the classical answer to this problem.
 
-WHY THIS ARM EXISTS
+Motivation
+----------
 
 Every other arm in this project is a measurement model, and the comparison
 between them is which map and which covariance to learn. MMAE is not that. It
@@ -22,7 +23,8 @@ normalised, and the reported estimate is the probability-weighted blend. A
 filter whose assumed fault matches reality predicts its measurements well, so
 its weight rises; the rest fall.
 
-WHAT IT COSTS AND WHAT THAT BUYS
+Cost
+----
 
 Seven hypotheses means seven filters, each with its own state, covariance and
 sigma points. That is the comparison the README makes: a bank costs N filters
@@ -31,7 +33,8 @@ twenty-seven. Until this file existed that claim was asserted rather than
 measured, which made it the only comparative claim in the project not backed
 by a run.
 
-WHERE THE BANK COMES FROM, AND WHY THAT IS THE HARD PART
+Choice of hypotheses
+--------------------
 
 MMAE needs a discrete set of hypotheses and the fault space here is
 continuous: three channels, two modes, severity anywhere from nothing to
@@ -47,9 +50,10 @@ interesting question is what happens at the two that the bank does not sit on.
 
 That is the real comparison. Not "does a bank work" -- it does, on the fault
 it was built for -- but whether a continuous health state is worth having
-where the fault is not one of the ones somebody wrote down.
+where the fault is not one of the enumerated hypotheses.
 
-TWO THINGS THAT WOULD MAKE THIS A STRAWMAN IF LEFT OUT
+Implementation requirements
+---------------------------
 
 Weights are floored. Left alone, a hypothesis whose likelihood is tiny for a
 few hundred steps has its weight driven to zero in floating point and can

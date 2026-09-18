@@ -1,7 +1,8 @@
 """
 Every arm with a sensor going bad.
 
-THE QUESTION
+Question
+--------
 
 When a sensor degrades, the filter should stop trusting it. "Trust" here is
 literally R: the bigger R is for a channel, the less that channel moves the
@@ -12,14 +13,16 @@ An arm that tracks it stays consistent and keeps estimating well. An arm that
 does not carries on trusting a broken sensor, and the damage shows up in NIS
 climbing far above 3.
 
-WHAT COUNTS AS PASSING
+Acceptance criterion
+--------------------
 
 The claimed spread should stay near the true spread as severity rises. That
 ratio is the column to read. NIS is the supporting evidence: an arm that
 keeps its claimed noise honest keeps NIS near 3 as well, because NIS is
 exactly the question "was I as surprised as I said I would be".
 
-A NOTE ON WHAT THIS CAN AND CANNOT SHOW
+Limitations
+-----------
 
 The learned arms take the STATE as their input. A fault is added to the
 READING. So for a given state the learned models return the same answer

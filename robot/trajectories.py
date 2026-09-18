@@ -24,11 +24,11 @@ def random_commands(t, seed):
     """Random driving that still looks like a real robot.
 
     Adding a few sine waves with random periods gives something that
-    wanders around smoothly. That matters because a real robot can't
-    change speed instantly, so the commands shouldn't either.
+    wanders around smoothly. That matters because a real robot cannot
+    change speed instantly, so the commands should not either.
 
     Speed and turning get their own separate waves. If the speed were
-    always the same, you couldn't tell from the wheel readings whether a
+    always the same, the wheel readings could not show whether a
     change came from speeding up or from turning.
     """
     rng = np.random.default_rng(seed)
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     print("S path: %d steps over %.0f seconds" % (len(run["t"]), run["t"][-1]))
     print("   turn rate goes from %+.2f to %+.2f rad/s"
           % (run["turn_rate"].min(), run["turn_rate"].max()))
-    print("   it turns both directions, which is what we want")
+    print("   it turns both directions, as required")
 
     again = s_path()
     print("   running it twice gives the same path:",
@@ -132,8 +132,8 @@ if __name__ == "__main__":
     print("   turn rate goes from %+.2f to %+.2f rad/s"
           % (all_turn.min(), all_turn.max()))
 
-    # If speed and turning always went up together, you couldn't separate
-    # their effects on the wheels. Close to zero means they're independent.
+    # If speed and turning always rose together, their effects on the wheels
+    # could not be separated. Close to zero means they are independent.
     link = np.corrcoef(all_speed, np.abs(all_turn))[0, 1]
     print("   speed and turning are linked by %.3f (want close to 0)" % link)
 

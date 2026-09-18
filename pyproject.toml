@@ -1,0 +1,26 @@
+[project]
+name = "ai4fly-estimation"
+version = "0.1.0"
+description = "Learned measurement models for joint state and sensor-health estimation under onboard compute constraints"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Austin Strain" },
+    { name = "Anthony La Barca" },
+]
+
+# Dependencies are pinned in requirements.txt rather than here, because the
+# repository is a research artifact run as scripts rather than an installed
+# package, and that file documents the full reproduction sequence.
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+# Output tables are aligned by hand for readability, which sometimes means a
+# long format string; the limit above is enforced, but not the rule against
+# ambiguous single-letter names, since Q, R and P are the standard symbols.
+ignore = ["E741"]

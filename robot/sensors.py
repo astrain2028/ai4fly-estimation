@@ -3,9 +3,9 @@ What the robot's sensors report: two wheel encoders and a gyro.
 
 Everything here is a healthy sensor. Faults come later, in their own file.
 
-Three sensors for two unknowns (speed and turn rate) means there's one
-spare. That's on purpose. With exactly enough sensors, a broken one just
-gives you a different answer and nothing looks wrong. With a spare, the
+Three sensors for two unknowns (speed and turn rate) means there is one
+spare, deliberately. With exactly enough sensors, a broken one just
+gives a different answer and nothing looks wrong. With a spare, the
 sensors disagree with each other, and that disagreement is the clue.
 """
 
@@ -13,7 +13,7 @@ import numpy as np
 
 # Noise levels. The encoders get noisier when the wheels spin fast, and the
 # gyro gets noisier when the robot turns hard. That is the whole reason a
-# model can learn the noise: it depends on something you can see.
+# model can learn the noise: it depends on something observable.
 ENCODER_NOISE = 0.08          # rad/s when barely moving
 ENCODER_NOISE_GROWTH = 0.05   # extra noise per rad/s of wheel spin
 GYRO_NOISE = 0.010            # rad/s when going straight
@@ -34,7 +34,7 @@ def gyro_noise_level(turn_rate):
 
 
 def round_to_ticks(rate, dt):
-    """Encoders count whole ticks, so they can't report just any number.
+    """Encoders count whole ticks, so they cannot report an arbitrary value.
 
     In one time step the encoder might count 32 ticks or 33, never 32.4.
     So the spin rate it reports gets rounded to the nearest multiple of
@@ -50,7 +50,7 @@ def read_sensors(run, seed, dt=0.02):
     n = len(run["t"])
 
     # The gyro's bias is picked once and stays the same for the whole run.
-    # That's how real gyros behave, and it means runs can't be split up
+    # That is how real gyros behave, and it means runs cannot be split up
     # randomly later on: every reading in a run shares this one offset.
     gyro_bias = rng.normal(0, GYRO_BIAS_SIZE)
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     one_tick = (2 * np.pi / TICKS_PER_TURN) / DT
     print("\nLeft encoder error")
     print("   actual spread          %.4f rad/s" % error.std())
-    print("   from the noise we added %.4f rad/s" % readings["left_noise"].mean())
+    print("   from the injected noise %.4f rad/s" % readings["left_noise"].mean())
     print("   from tick rounding      %.4f rad/s" % (one_tick / np.sqrt(12)))
     print("   the two together explain the spread")
 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     print("Noise when spinning fast: %.4f" % error[fast].std())
     print("   noisier when faster, as designed")
 
-    # Can we still work out what the robot was doing?
+    # Can the robot's motion still be recovered?
     left_speed = readings["left_encoder"] * WHEEL_RADIUS
     right_speed = readings["right_encoder"] * WHEEL_RADIUS
     guess_speed, guess_turn = speed_and_turn_from_wheels(left_speed, right_speed)
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     agreement = np.corrcoef(guess_turn, readings["gyro"])[0, 1]
     print("\nEncoders and gyro agree on turn rate: %.4f" % agreement)
     print("   they should, since both measure it")
-    print("   a broken sensor breaks this agreement, which is how you spot it")
+    print("   a broken sensor breaks this agreement, which is how a fault is detected")
 
     # Same seed, same readings
     again = read_sensors(run, seed=0, dt=DT)

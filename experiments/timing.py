@@ -11,7 +11,8 @@ That matters more here than in most projects. The whole argument for a
 deterministic Bayesian method over an ensemble is that it costs less, and an
 unquotable cost is an unmade argument.
 
-WHAT THIS DOES DIFFERENTLY
+Method
+------
 
 Warmup, so the first call's import and allocation costs are not counted.
 Repeats, so a single unlucky window does not decide the answer. And the
@@ -22,7 +23,8 @@ The spread between the fastest and slowest repeat is reported alongside. If
 that spread is wide the number should not be quoted at all, whatever the
 median says.
 
-WHAT IS TIMED
+Scope
+-----
 
 One filter step: predict, evaluate the measurement model at every sigma
 point, rebuild, update. That is the quantity a real-time budget constrains --

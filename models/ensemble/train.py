@@ -1,7 +1,8 @@
-"""
+r"""
 Five heteroscedastic models, trained separately, answering together.
 
-WHY FIVE OF THE SAME THING
+Motivation
+----------
 
 One heteroscedastic model says how noisy a reading should be. What it cannot
 say is whether it has any business answering at all -- shown a state unlike
@@ -18,7 +19,8 @@ did not. That disagreement is the missing signal.
 The first part is aleatoric: real noise in the sensor, irreducible. The
 second is epistemic: the model's own ignorance, which more data would fix.
 
-WHAT IT COSTS
+Cost
+----
 
 Five networks means five times the inference, five times the memory, and
 five times the training. On a companion computer sharing cycles with a

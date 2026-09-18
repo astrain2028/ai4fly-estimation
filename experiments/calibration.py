@@ -1,5 +1,6 @@
 """
-TEST 1 -- IS THE MAP RIGHT?
+Test 1: accuracy of the measurement map
+---------------------------------------
 
 Asks what a hand-written measurement model is worth when the vehicle is
 not quite the vehicle it was written for.
@@ -11,7 +12,7 @@ from data can beat that, and the healthy comparison confirms it -- the
 heteroscedastic arm ties and no arm does better.
 
 That is not a property of measurement models. It is a property of a
-simulation in which somebody wrote down the vehicle exactly.
+simulation in which the vehicle was specified exactly.
 
 Real wheels are not exactly the radius on the drawing. Tyres wear, pressure
 changes, and the track width is a ruler measurement between two contact
@@ -26,7 +27,8 @@ actually shows, which is the relationship the real vehicle has. So the
 question here is how much calibration error it takes before learning the
 measurement model beats deriving it.
 
-WHAT THIS DOES AND DOES NOT ARGUE
+Scope of the claim
+------------------
 
 It argues for learning the measurement map. It does not, on its own, argue
 for a state-dependent covariance -- a plain network fits the same biased

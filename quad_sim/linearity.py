@@ -1,13 +1,14 @@
 """
 Is there anything here for a nonlinear model to learn?
 
-THE QUESTION THIS FOLDER EXISTS TO ANSWER
+Question
+--------
 
 On the ground robot the measurement map is exactly linear, and an ordinary
 least-squares fit beat the trained network on every channel by three to seven
 per cent. The network was approximating a straight line with a piecewise-linear
-ReLU stack and paying for the kinks. So on that problem "we learned a nonlinear
-measurement model" describes the architecture rather than anything the data
+ReLU stack and paying for the kinks. So on that problem "a nonlinear measurement
+model was learned" describes the architecture rather than anything the data
 required.
 
 Before building a learned model here it is worth asking whether this problem is
@@ -27,7 +28,8 @@ This is the honest order to do it in. Training first and reporting that the
 network works would not distinguish the two cases, because a network can fit a
 linear function too.
 
-WHY THE ANSWER IS NOT OBVIOUS IN ADVANCE
+Operating range
+---------------
 
 Six of the nine channels go through a rotation matrix, which is trigonometric,
 so the map is certainly not a matrix. But "not a matrix" and "far from a
@@ -112,7 +114,7 @@ def main():
     print("  noiseless reading. 'ratio' compares that to the noise floor.")
     print("  Below 1 means the linear map is inside the noise and nothing")
     print("  could tell the difference. Well above 1 means there is real")
-    print("  structure left on the table.")
+    print("  structure left unexplained.")
 
     worst = max(ratios)
     print("\n\nVERDICT\n")

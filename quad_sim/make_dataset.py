@@ -1,7 +1,8 @@
 """
 Training data: flights with labelled sensor health.
 
-WHAT A ROW IS
+Row format
+----------
 
 One sample: the six true states, the nine readings, and six numbers saying how
 degraded each device was at that moment. The model learns the map from the
@@ -16,7 +17,8 @@ responses, correcting 57 per cent of a bias it should have corrected fully and
 applying a spurious shift to noise-only faults. Two numbers let it move the
 predicted reading for one and the predicted spread for the other.
 
-SEVERITY VARIES WITHIN A RUN
+Fault onset
+-----------
 
 Half of faulted runs develop their fault partway through rather than carrying
 it from the first sample. Without those examples a model has only ever seen
@@ -28,7 +30,8 @@ brought to 58.
 Both modes on a device share one onset time. A single physical failure
 degrades a part in whatever ways it degrades it at once.
 
-ONE DEVICE AT A TIME
+Single-device faults
+--------------------
 
 Nine measurements constrain six states, so three are spare and a single failed
 device leaves the other two able to disagree with it. Two failed devices do

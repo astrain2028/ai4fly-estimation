@@ -10,7 +10,8 @@ where m is how degraded each sensor is. At m = 0 it must reproduce the
 healthy relationship. As m rises it reproduces whatever that degradation does
 to the reading, with intermediate values interpolating.
 
-WHY THIS IS THE WHOLE POINT
+Motivation
+----------
 
 A model taking only the state cannot respond to a fault. The fault arrives in
 the measurement; the state looks entirely ordinary; the model returns the
@@ -24,7 +25,8 @@ carry m as a state, spread its sample points over it, and see the predicted
 readings change -- and a predicted reading that changes with health is
 exactly what lets the update move health.
 
-WHAT TO EXPECT, AND WHAT NOT TO
+Expected behaviour
+------------------
 
 The filter estimates health through the covariance between its sample points'
 health and their predicted readings. That covariance is non-zero only where

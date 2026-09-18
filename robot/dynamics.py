@@ -12,7 +12,7 @@ TRACK_WIDTH = 0.45     # meters, from the left wheels to the right wheels
 
 # What the robot ACTUALLY is, as a fraction off the numbers above.
 #
-# The two constants are what somebody measured and wrote down. The real wheel
+# The two constants are the nominal, specified values. The real wheel
 # radius changes with tyre pressure and wear, and the real track width is a
 # ruler measurement between two contact patches that are not points. So the
 # vehicle the sensors are attached to is never quite the vehicle the equations
@@ -97,7 +97,7 @@ def step(state, speed, turn_rate, dt):
 
     new_state = state + (dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
-    # keep heading between -pi and pi so it doesn't grow forever
+    # keep heading between -pi and pi so it does not grow without bound
     new_state[2] = np.arctan2(np.sin(new_state[2]), np.cos(new_state[2]))
     return new_state
 
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     state = step(np.array([0.0, 0.0, 0.0]), 0.0, 1.0, 0.25)
     print("   position %.3f, %.3f   heading %.3f rad"
           % (state[0], state[1], state[2]))
-    print("   it turned but didn't move, which is correct")
+    print("   it turned but did not move, which is correct")
 
     print("\nDrive a full circle at 1 m/s, 0.5 rad/s")
     print("   the circle should have radius speed/turn_rate = 2.00 m")

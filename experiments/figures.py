@@ -1,14 +1,16 @@
 """
 The figures, drawn from results/bakeoff.csv rather than from memory.
 
-WHY THE CSV AND NOT A FRESH RUN
+Data source
+-----------
 
 Everything here reads the file bakeoff.py wrote. Nothing is recomputed. That
 is deliberate: a figure that reruns the experiment can disagree with the table
 it sits next to, and then there is no way to tell which is right. One sweep,
 one file, and both the table and the plots are views of it.
 
-THE FIGURE THAT MATTERS
+Complementarity figure
+----------------------
 
 complementarity.png is the argument in one image. Two panels, one per fault
 mode, speed error against severity:
@@ -27,7 +29,8 @@ it is the sort of thing a table states and a figure shows.
 The combined line should track the lower of the two in both panels. Where it
 does not is as informative as where it does.
 
-CONSISTENCY, WHICH IS THE HALF THAT SURVIVES TO HARDWARE
+Consistency figure
+------------------
 
 consistency.png plots NIS against severity on a log scale, with the target of
 3 marked. NEES needs the true state and so exists only in simulation; on a

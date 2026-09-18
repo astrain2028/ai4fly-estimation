@@ -3,9 +3,10 @@ Things that go wrong with a sensor.
 
 Kept separate from sensors.py on purpose. That file is the healthy robot and
 should stay that way, so "healthy" is never an option flag that might get set
-wrong -- it is simply what you get when this file is not involved.
+wrong -- it is simply the result when this file is not involved.
 
-HOW SEVERITY WORKS
+Severity scale
+--------------
 
 Every fault takes a severity, a plain number where 0 means nothing is wrong.
 A severity of 1 makes the fault about the size of that sensor's own healthy

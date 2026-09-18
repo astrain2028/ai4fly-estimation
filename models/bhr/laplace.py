@@ -1,7 +1,8 @@
 """
 The Bayesian half of the heteroscedastic model.
 
-WHAT IS MISSING WITHOUT IT
+Motivation
+----------
 
 The trained model gives one number for the noise on each sensor. That number
 answers "how noisy is this reading", and it is honest wherever the training
@@ -14,7 +15,8 @@ watching them disagree, which costs five times the inference. This file gets
 it from one model, after training, for about the price of a small matrix
 multiply.
 
-THE IDEA
+Method
+------
 
 Training finds one set of weights: the ones that best explain the data. But
 other weights nearby explain it almost as well, and the model has no
@@ -22,7 +24,7 @@ principled reason to prefer its own. That spread of nearly-as-good weights IS
 the model's uncertainty about itself.
 
 Laplace's approximation says: pretend that spread is a Gaussian, centred on
-the weights we found, with a width set by how sharply the loss curves upward
+the fitted weights, with a width set by how sharply the loss curves upward
 around them. Sharp curvature means the data pinned those weights down, so the
 spread is narrow. Flat curvature means many weights would have done, so it is
 wide.
@@ -32,7 +34,8 @@ wide.
 where A is the curvature of the loss. Then a prediction is no longer one
 number but a distribution, and its spread is the epistemic part.
 
-ONLY THE LAST LAYER
+Last-layer approximation
+------------------------
 
 Curvature for every weight in the network would be a matrix of 5,000 by 5,000
 and is not worth it. Treating only the final layer as uncertain keeps almost
@@ -40,7 +43,8 @@ all of the signal: the layers before it are a feature extractor, and the last
 layer is the part that actually commits to an answer. That makes A a 65 by 65
 matrix -- 64 hidden units plus a bias -- which inverts instantly.
 
-THE PART THAT IS NICE ABOUT NATURAL PARAMETERS
+Curvature in natural parameters
+-------------------------------
 
 For the loss this model trains on, the curvature with respect to eta1 works
 out to something very simple. Writing the negative log likelihood in natural
@@ -57,7 +61,8 @@ noisy contributes little curvature -- it pins the weights down weakly, which
 is exactly right, because a noisy observation is weak evidence. That falls
 straight out of the parameterisation rather than having to be argued for.
 
-PUTTING IT TOGETHER
+Summary
+-------
 
 For each output j, with features f(x) from the penultimate layer:
 

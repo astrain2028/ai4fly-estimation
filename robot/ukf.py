@@ -15,7 +15,8 @@ speed and turn rate, and nothing reports acceleration. It is carried anyway
 because the alternative is worse. See move_state for the measurement that
 settles it.
 
-WHY UNSCENTED AND NOT PLAIN KALMAN
+Choice of filter
+----------------
 
 A plain Kalman filter needs the motion to be a matrix multiply. Ours has
 cos(heading) and sin(heading) in it, so there is no such matrix once the
@@ -78,7 +79,8 @@ def move_state(state, dt):
     by the accelerations, and the accelerations themselves are left alone --
     the process noise Q is what lets those drift.
 
-    WHY ACCELERATION IS A STATE
+    Acceleration in the state
+    -------------------------
 
     An earlier version stopped at five states and let Q move speed and turn
     rate directly, which says their step-to-step changes are independent
@@ -155,7 +157,8 @@ class UKF:
         covariance -- those two are what a consistency check needs, so they
         come back rather than being thrown away.
 
-        WHERE R COMES FROM WHEN THE MODEL PREDICTS IT
+        State-dependent R
+        -----------------
 
         A model whose noise depends on the state gives a different answer at
         every sample point, and only one number can go into the update. The
@@ -305,7 +308,7 @@ def consistency(values, dof):
 
     Checking only the average is not enough. Chen et al. show a filter that
     is tuned wrongly but still has exactly the right average, with the
-    spread giving it away. We hit the same thing here: an average of 3.17
+    spread giving it away. The same occurred here: an average of 3.17
     against a target of 3 looked fine while the spread was 7.2 against 6,
     because two channels were over-trusted and one under-trusted by amounts
     that cancelled in a sum and compounded in a square.
