@@ -100,8 +100,7 @@ def load_measurement_model(path=None):
 
 if __name__ == "__main__":
     sys.path.insert(0, str(ROOT / "experiments"))
-    from common import (N_RUNS, NIS_DOF, NEES_DOF, gather, two_moment,
-                        load_arm, make_run)
+    from common import N_RUNS, NIS_DOF, NEES_DOF, gather, load_arm, make_run
 
     measure = load_arm("ensemble")
     single = load_arm("bhr")

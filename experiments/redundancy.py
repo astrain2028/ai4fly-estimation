@@ -34,7 +34,6 @@ model that reads health from the state should not need to wait at all. If it
 does, the lag advantage claimed for the learned approach is not real.
 """
 
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -42,7 +41,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import numpy as np
 
-from common import NIS_DOF, P0, Q, best_constant_R, load_arm
+from common import P0, Q, best_constant_R, load_arm
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "robot"))

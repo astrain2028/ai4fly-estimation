@@ -45,7 +45,7 @@ import importlib.util
 import numpy as np
 import torch
 
-from common import NEES_DOF, NIS_DOF, P0, Q, filter_once, two_moment
+from common import NEES_DOF, NIS_DOF, filter_once, two_moment
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "robot"))
@@ -55,13 +55,8 @@ from trajectories import DT, random_run
 from ukf import expected_readings
 
 import make_dataset
-
-
-def _load(path, name):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+sys.path.insert(0, str(ROOT))
+from loader import load_module as _load
 
 
 bhr = _load(ROOT / "models" / "bhr" / "train.py", "bhr_train_sweep")

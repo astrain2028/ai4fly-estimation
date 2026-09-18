@@ -34,7 +34,6 @@ relationship equally well, and the two learned arms should move together.
 Separating those two claims is why the plain arm is here.
 """
 
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -43,8 +42,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import numpy as np
 import torch
 
-from common import (NEES_DOF, NIS_DOF, best_constant_R, filter_once,
-                    NEES_STATES, two_moment)
+from common import NEES_DOF, NIS_DOF, best_constant_R, filter_once, two_moment
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "robot"))

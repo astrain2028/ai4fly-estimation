@@ -118,7 +118,7 @@ def stack(meas):
 
 
 if __name__ == "__main__":
-    from trajectories import DT, DURATION, random_run
+    from trajectories import random_run
 
     print("Do the readings match what the geometry says?\n")
     run = random_run(0)

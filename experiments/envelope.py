@@ -49,7 +49,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import numpy as np
 import torch
 
-from common import NEES_DOF, NIS_DOF, P0, Q, best_constant_R, two_moment
+from common import NEES_DOF, NIS_DOF, P0, Q, best_constant_R
 from common import NEES_STATES, stack
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,14 +60,8 @@ import sensors
 from trajectories import DT, random_run
 from ukf import UKF, nis as nis_of, nees as nees_of
 
-from heteroscedasticity import train_heteroscedastic
-
-
-def _load(path, name):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+sys.path.insert(0, str(ROOT))
+from loader import load_module as _load
 
 
 bhr = _load(ROOT / "models" / "bhr" / "train.py", "bhr_train_env")

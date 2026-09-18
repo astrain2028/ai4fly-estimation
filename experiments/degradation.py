@@ -40,7 +40,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import numpy as np
 
 from common import (ARMS, LABELS, SLOW, NIS_DOF, R_TUNED, available,
-                    filter_once, load_arm, make_run, stack)
+                    filter_once, load_arm, make_run)
 from faults import REFERENCE, apply_fault
 
 CHANNELS = ["left_encoder", "right_encoder", "gyro"]

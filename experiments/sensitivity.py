@@ -55,13 +55,8 @@ from ukf import UKF, nis as nis_of
 
 SEEDS = range(2000, 2005)
 CHANNEL = "left_encoder"
-
-
-def _load(path, name):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+sys.path.insert(0, str(ROOT))
+from loader import load_module as _load
 
 
 health_m = _load(ROOT / "models" / "health" / "measurement.py", "sens_health")

@@ -52,13 +52,8 @@ import torch
 
 import dynamics
 from sensors import CHANNELS
-
-
-def _load(path, name):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+sys.path.insert(0, str(ROOT))
+from loader import load_module as _load
 
 
 def _load_borrowing(path, name, extra, shadows=()):

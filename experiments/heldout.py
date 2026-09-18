@@ -44,7 +44,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import numpy as np
 
-from common import NIS_DOF, P0, Q, best_constant_R
+from common import P0, Q, best_constant_R
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "robot"))
@@ -53,13 +53,8 @@ import sensors
 from faults import apply_fault
 from trajectories import DT, random_run
 from ukf import UKF, expected_readings, nis as nis_of
-
-
-def _load(path, name):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+sys.path.insert(0, str(ROOT))
+from loader import load_module as _load
 
 
 health = _load(ROOT / "models" / "health" / "measurement.py", "health_h")

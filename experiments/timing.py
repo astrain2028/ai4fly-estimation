@@ -55,13 +55,8 @@ WARMUP = 20            # steps discarded before timing starts
 STEPS = 200            # steps per repeat
 REPEATS = 7            # repeats, so the median has something to sit in
 BUDGET_MS = 1000 * DT  # 20 ms at 50 Hz
-
-
-def _load(path, name):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+sys.path.insert(0, str(ROOT))
+from loader import load_module as _load
 
 
 def time_arm(measure, R=None):

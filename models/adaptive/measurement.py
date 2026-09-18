@@ -125,10 +125,8 @@ def load_measurement_model(path=None):
 
 if __name__ == "__main__":
     sys.path.insert(0, str(ROOT / "experiments"))
-    from common import (R_TUNED, N_RUNS, NIS_DOF, NEES_DOF, gather,
-                        two_moment, load_arm, make_run, filter_once,
+    from common import (R_TUNED, N_RUNS, gather, make_run, filter_once,
                         best_constant_R)
-    from faults import apply_fault
 
     print("Does it find the sensor noise on its own?\n")
     model = load_measurement_model()

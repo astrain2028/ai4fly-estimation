@@ -37,10 +37,8 @@ def load_measurement_model(path=None):
 
 
 if __name__ == "__main__":
-    import numpy as np
     sys.path.insert(0, str(ROOT / "experiments"))
-    from common import (R_TUNED, N_RUNS, NIS_DOF, NEES_DOF, gather,
-                        two_moment, load_arm)
+    from common import N_RUNS, NIS_DOF, NEES_DOF, gather, two_moment, load_arm
 
     measure = load_arm("fixed")
     results = gather(measure, range(N_RUNS))

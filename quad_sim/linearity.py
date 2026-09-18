@@ -49,7 +49,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import numpy as np
 
 from sensors import CHANNELS, ideal_readings, noise_levels, read_sensors, stack
-from trajectories import DT, random_run, truth_matrix
+from trajectories import random_run, truth_matrix
 
 TRAIN_RUNS = range(0, 40)
 TEST_RUNS = range(100, 110)

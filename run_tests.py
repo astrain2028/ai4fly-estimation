@@ -84,7 +84,11 @@ SLOW = [
     "quad_sim/train.py",
 ]
 
-TIMEOUT = 900
+# Per test, in seconds. The Gaussian process sets this: its self-test has run
+# in 586 s, 623 s and 947 s on the same machine depending on load, and at 900 s
+# the limit sat inside that spread, so the test passed or failed on power state
+# rather than on the code. A limit has to clear the slowest honest run.
+TIMEOUT = 1800
 
 
 def run(path):

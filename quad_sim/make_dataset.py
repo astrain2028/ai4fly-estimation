@@ -46,7 +46,7 @@ import numpy as np
 import pandas as pd
 
 import faults
-from faults import DEVICES, REFERENCE
+from faults import DEVICES
 from sensors import CHANNELS, read_sensors
 from trajectories import DT, DURATION, random_run, truth_matrix
 

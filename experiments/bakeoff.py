@@ -108,13 +108,8 @@ QUICK_SEEDS = range(2000, 2004)
 QUICK_SEVERITIES = [1.5]
 
 RESULTS = ROOT / "results"
-
-
-def _load(path, name):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+sys.path.insert(0, str(ROOT))
+from loader import load_module as _load
 
 
 def conditions(severities):

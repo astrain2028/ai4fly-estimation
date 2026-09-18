@@ -83,7 +83,6 @@ sys.path.insert(0, str(ROOT / "robot"))
 DATA = ROOT / "data" / "robot_data.csv"
 
 import numpy as np
-import pandas as pd
 import torch
 
 import importlib.util

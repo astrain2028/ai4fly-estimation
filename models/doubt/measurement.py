@@ -64,13 +64,8 @@ sys.path.insert(0, str(ROOT / "robot"))
 
 import numpy as np
 import torch
-
-
-def _load(path, name):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+sys.path.insert(0, str(ROOT))
+from loader import load_module as _load
 
 
 health = _load(ROOT / "models" / "health" / "measurement.py", "health_for_doubt")
