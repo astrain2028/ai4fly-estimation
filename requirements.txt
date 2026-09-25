@@ -27,6 +27,12 @@ torch>=2.0
 # filter never imports it.
 matplotlib>=3.8
 
+# Vehicle side only, and optional: deploy/mavlink_source.py imports it lazily
+# to read a flight controller or replay a .tlog. The estimator itself runs
+# with numpy alone -- see deploy/runtime.py -- and that file has never been
+# exercised against a real link.
+# pymavlink>=2.4
+
 # Tested on Python 3.13.5 with numpy 2.4.2, pandas 3.0.3, torch 2.12.1+cpu
 # and matplotlib 3.10.8. The CPU build of torch is deliberate: the whole
 # argument is about what fits in a 20 ms budget on a companion computer, so

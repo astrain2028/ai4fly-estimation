@@ -1,0 +1,33 @@
+# systemd unit for the companion-computer estimator.
+#
+# Install on the Raspberry Pi:
+#
+#     sudo cp deploy/pi/estimator.service /etc/systemd/system/
+#     sudo systemctl daemon-reload
+#     sudo systemctl enable --now estimator
+#     journalctl -u estimator -f
+#
+# Assumes the repository is checked out at /home/pi/ai4fly-estimation and the
+# flight controller's TELEM2 port is wired to the Pi's primary UART. See
+# deploy/pi/README.md for the wiring, the ArduPilot parameters that enable
+# MAVLink on that port, and how to confirm the link before enabling this.
+
+[Unit]
+Description=Sensor-health estimator (advisory, MAVLink)
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/ai4fly-estimation
+ExecStart=/usr/bin/python3 deploy/pi_main.py --link /dev/serial0:921600 --vehicle quadcopter
+Restart=always
+RestartSec=3
+# pi_main reconnects on a dropped link itself; Restart covers a crash.
+Nice=-5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
