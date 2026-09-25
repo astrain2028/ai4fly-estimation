@@ -89,12 +89,34 @@ sys.path.insert(0, str(ROOT))
 from loader import load_module as _load
 
 
-health = _load(ROOT / "models" / "health" / "measurement.py", "health_for_layered")
+# The health arm's state layout, restated rather than imported. Importing
+# models/health at module level would execute its torch import, and this
+# module's one class is pure numpy -- deploy/runtime.py depends on that, since
+# the vehicle-side process is meant to carry no deep-learning framework at
+# all. The health model itself is loaded lazily, inside
+# load_measurement_model, by the one caller that needs it.
+N_STATES = 13
+HEALTH_STATES = [7, 8, 9, 10, 11, 12]
+TAKE = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12]
 
-N_STATES = health.N_STATES
-HEALTH_STATES = health.HEALTH_STATES
-TAKE = health.TAKE
-filter_settings = health.filter_settings
+HEALTH_PROCESS_NOISE = 1e-6
+HEALTH_START_SPREAD = 0.1
+
+
+def filter_settings(Q7, P7):
+    """Widen a seven-state Q and P0 to carry health as well."""
+    Q13 = np.zeros((N_STATES, N_STATES))
+    P13 = np.zeros((N_STATES, N_STATES))
+    Q13[:7, :7], P13[:7, :7] = Q7, P7
+    for i in HEALTH_STATES:
+        Q13[i, i] = HEALTH_PROCESS_NOISE
+        P13[i, i] = HEALTH_START_SPREAD
+    return Q13, P13
+
+
+def _health():
+    return _load(ROOT / "models" / "health" / "measurement.py",
+                 "health_for_layered")
 
 # How fast the running innovation covariance forgets. 0.01 gives a time
 # constant near a hundred steps, two seconds at 50 Hz, which is where
@@ -187,7 +209,7 @@ def load_measurement_model(path=None, with_epistemic=False):
     have been fitted, and the point of this arm is the algebra of the third
     term rather than the presence of the second.
     """
-    base = health.load_measurement_model(path)
+    base = _health().load_measurement_model(path)
     epistemic = None
 
     if with_epistemic:
