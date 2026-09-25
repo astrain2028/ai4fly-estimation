@@ -1,0 +1,21 @@
+condition,entry,steps,above_1,above_2,above_3,final
+healthy seed 1,bias_mag,1000,986,966,827,4.787677577810727
+healthy seed 2,bias_accel,1000,0,0,0,0.008806576313956118
+healthy seed 3,noise_mag,1000,547,0,0,0.9680629013618992
+healthy seed 4,bias_accel,1000,0,0,0,0.021170913821686364
+healthy seed 5,bias_accel,1000,0,0,0,0.027369102575922857
+healthy seed 6,noise_gyro,1000,21,0,0,1.1570388172098847
+healthy seed 7,bias_gyro,1000,979,963,736,2.1168217839985375
+healthy seed 8,noise_mag,1000,974,953,179,3.0848378336833018
+accel bias severity 2,bias_accel,500,0,0,0,0.7560786507069607
+accel bias severity 3,bias_accel,500,0,0,0,0.9535759608877461
+gyro bias severity 2,bias_gyro,500,0,0,0,0.5197362003731572
+gyro bias severity 3,bias_gyro,500,0,0,0,0.679676576870544
+mag bias severity 2,bias_mag,500,500,500,500,4.565509003190756
+mag bias severity 3,bias_mag,500,500,500,500,4.598235041593717
+accel noise_inflation severity 2,noise_accel,500,0,0,0,0.03120567463129153
+accel noise_inflation severity 3,noise_accel,500,0,0,0,0.05485175971177199
+gyro noise_inflation severity 2,noise_gyro,500,0,0,0,0.10403264578905433
+gyro noise_inflation severity 3,noise_gyro,500,0,0,0,0.10135892718721262
+mag noise_inflation severity 2,noise_mag,500,500,500,0,2.640589675197188
+mag noise_inflation severity 3,noise_mag,500,500,500,0,2.645816281284403
