@@ -20,10 +20,15 @@ That breaks. Differentiating with respect to mu gives
 so the pull on the mean is divided by the predicted variance. Wherever the
 model guesses a large variance, the mean stops being corrected, the error
 stays large, and that large error then justifies an even larger variance.
-The model talks itself into ignoring part of the data.
+The model talks itself into ignoring part of the data. This failure is
+documented by Seitzer, Tavakoli, Antic and Martius, "On the Pitfalls of
+Heteroscedastic Uncertainty Estimation with Probabilistic Neural Networks"
+(ICLR 2022), reference [7] in the README.
 
 The fix is to predict a different pair of numbers -- the "natural
-parameters" of a Gaussian:
+parameters" of a Gaussian, as in Immer, Palumbo, Marx and Vogt, "Effective
+Bayesian Heteroscedastic Regression with Deep Neural Networks" (NeurIPS 2023),
+reference [8]:
 
     eta1 = mu / var
     eta2 = -1 / (2 var)
