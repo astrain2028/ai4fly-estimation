@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "ai4fly-estimation: learned measurement models for joint state and sensor-health estimation"
+abstract: >-
+  Sensor health is carried as part of the filter state and a learned
+  measurement model is conditioned on it, so that an unscented Kalman filter
+  estimates vehicle state and per-sensor degradation jointly. The central
+  result is that faults divide by which moment of the measurement
+  distribution they disturb: mean-shifting faults are estimable through the
+  health state, while variance-inflating faults are structurally invisible
+  to it and require covariance matching. The two mechanisms are therefore
+  complementary by construction, and the boundary between them is derivable
+  from the measurement model before any experiment is run.
+type: software
+authors:
+  - family-names: Strain
+    given-names: Austin
+  - family-names: La Barca
+    given-names: Anthony
+    affiliation: >-
+      Cooperative Human-Robot Intelligence (COHRINT) Lab, Ann and H.J. Smead
+      Department of Aerospace Engineering Sciences, University of Colorado
+      Boulder
+repository-code: "https://github.com/astrain2028/ai4fly-estimation"
+license: MIT
+date-released: "2026-08-01"
+keywords:
+  - state estimation
+  - unscented Kalman filter
+  - sensor fault detection
+  - heteroscedastic regression
+  - adaptive filtering
+  - uncertainty quantification
