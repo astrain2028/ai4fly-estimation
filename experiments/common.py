@@ -122,6 +122,7 @@ LABELS = {
     "health": "health-conditioned",
     "combined": "combined",
     "doubt": "doubt-driven",
+    "layered": "layered",
 }
 
 # Arms too slow to give the full sweep. Experiments cut their run count and

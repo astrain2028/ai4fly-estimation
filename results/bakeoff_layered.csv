@@ -1,0 +1,57 @@
+arm,condition,mode,severity,channel,seed,speed_rmse,nis,nees
+layered,healthy,none,0,left_encoder,2000,0.00754528,1.98717,2.0497
+layered,healthy,none,0,left_encoder,2001,0.00972715,1.70737,2.01299
+layered,healthy,none,0,left_encoder,2002,0.00796307,2.04191,1.79809
+layered,healthy,none,0,left_encoder,2003,0.00645722,2.06169,1.45141
+layered,healthy,none,0,left_encoder,2004,0.00934796,1.75152,1.89092
+layered,healthy,none,0,left_encoder,2005,0.00791785,1.94657,2.00385
+layered,healthy,none,0,left_encoder,2006,0.0058938,2.08803,1.55713
+layered,healthy,none,0,left_encoder,2007,0.00577344,1.79001,1.18496
+layered,bias 0.5,bias,0.5,left_encoder,2000,0.00673511,1.80366,1.62742
+layered,bias 0.5,bias,0.5,left_encoder,2001,0.00917898,1.6267,1.91309
+layered,bias 0.5,bias,0.5,left_encoder,2002,0.00762453,1.85531,1.37563
+layered,bias 0.5,bias,0.5,left_encoder,2003,0.00788872,1.79975,1.29936
+layered,bias 0.5,bias,0.5,left_encoder,2004,0.0106115,1.66289,1.79275
+layered,bias 0.5,bias,0.5,left_encoder,2005,0.00805834,1.86655,1.6443
+layered,bias 0.5,bias,0.5,left_encoder,2006,0.00602884,1.91554,1.34463
+layered,bias 0.5,bias,0.5,left_encoder,2007,0.00597866,1.66964,1.07952
+layered,bias 1.5,bias,1.5,left_encoder,2000,0.00737361,1.59376,1.32971
+layered,bias 1.5,bias,1.5,left_encoder,2001,0.010818,1.46896,2.54393
+layered,bias 1.5,bias,1.5,left_encoder,2002,0.00938998,1.6343,1.37004
+layered,bias 1.5,bias,1.5,left_encoder,2003,0.00762815,1.68934,1.10753
+layered,bias 1.5,bias,1.5,left_encoder,2004,0.0102486,1.4634,1.6167
+layered,bias 1.5,bias,1.5,left_encoder,2005,0.00759922,1.67747,1.84828
+layered,bias 1.5,bias,1.5,left_encoder,2006,0.00584944,1.7536,1.04601
+layered,bias 1.5,bias,1.5,left_encoder,2007,0.010249,1.55588,1.89647
+layered,bias 3.0,bias,3,left_encoder,2000,0.011945,1.38961,2.11
+layered,bias 3.0,bias,3,left_encoder,2001,0.0178874,1.49611,2.90781
+layered,bias 3.0,bias,3,left_encoder,2002,0.0114581,1.46215,1.60493
+layered,bias 3.0,bias,3,left_encoder,2003,0.0246,1.61022,9.12453
+layered,bias 3.0,bias,3,left_encoder,2004,0.013167,1.50355,1.50197
+layered,bias 3.0,bias,3,left_encoder,2005,0.00884369,1.50247,1.44752
+layered,bias 3.0,bias,3,left_encoder,2006,0.017662,1.42488,2.87664
+layered,bias 3.0,bias,3,left_encoder,2007,0.0173202,1.37984,3.3774
+layered,noise 0.5,noise_inflation,0.5,left_encoder,2000,0.00815526,2.04672,2.16584
+layered,noise 0.5,noise_inflation,0.5,left_encoder,2001,0.00991166,1.90462,2.03742
+layered,noise 0.5,noise_inflation,0.5,left_encoder,2002,0.00860672,2.30218,2.05793
+layered,noise 0.5,noise_inflation,0.5,left_encoder,2003,0.00672049,2.27872,1.54147
+layered,noise 0.5,noise_inflation,0.5,left_encoder,2004,0.00913194,1.93457,1.90652
+layered,noise 0.5,noise_inflation,0.5,left_encoder,2005,0.00873728,2.14766,2.1642
+layered,noise 0.5,noise_inflation,0.5,left_encoder,2006,0.00614584,2.41757,1.68499
+layered,noise 0.5,noise_inflation,0.5,left_encoder,2007,0.00587088,2.06202,1.28577
+layered,noise 1.5,noise_inflation,1.5,left_encoder,2000,0.00912241,2.04253,2.07449
+layered,noise 1.5,noise_inflation,1.5,left_encoder,2001,0.0109736,2.20714,1.96698
+layered,noise 1.5,noise_inflation,1.5,left_encoder,2002,0.0101825,2.56783,2.2902
+layered,noise 1.5,noise_inflation,1.5,left_encoder,2003,0.00772572,2.46123,1.6195
+layered,noise 1.5,noise_inflation,1.5,left_encoder,2004,0.00915376,2.31234,1.71325
+layered,noise 1.5,noise_inflation,1.5,left_encoder,2005,0.00913355,2.22902,1.81716
+layered,noise 1.5,noise_inflation,1.5,left_encoder,2006,0.00827155,2.71969,1.84165
+layered,noise 1.5,noise_inflation,1.5,left_encoder,2007,0.00656885,2.37529,1.31497
+layered,noise 3.0,noise_inflation,3,left_encoder,2000,0.0100976,2.06094,2.00654
+layered,noise 3.0,noise_inflation,3,left_encoder,2001,0.011903,2.47053,1.92089
+layered,noise 3.0,noise_inflation,3,left_encoder,2002,0.0116457,2.81374,2.32621
+layered,noise 3.0,noise_inflation,3,left_encoder,2003,0.0084328,2.746,1.69463
+layered,noise 3.0,noise_inflation,3,left_encoder,2004,0.0093345,2.60304,1.66023
+layered,noise 3.0,noise_inflation,3,left_encoder,2005,0.00958519,2.25917,1.71235
+layered,noise 3.0,noise_inflation,3,left_encoder,2006,0.00889316,2.90541,1.6952
+layered,noise 3.0,noise_inflation,3,left_encoder,2007,0.00718922,2.63498,1.29852

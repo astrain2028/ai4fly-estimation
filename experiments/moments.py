@@ -81,7 +81,7 @@ from common import LABELS
 
 ROOT = Path(__file__).resolve().parents[1]
 
-ARMS = ["fixed", "adaptive", "health", "combined"]
+ARMS = ["fixed", "adaptive", "health", "combined", "layered"]
 
 # Severity means different things to different modes. bias, drift,
 # noise_inflation and scale_error take an amount, measured in multiples of the
