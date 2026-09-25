@@ -1,0 +1,29 @@
+arm,condition,mode,severity,moment,trained,attitude_rmse_deg,nis
+analytic + best const R,healthy,none,0,none,True,0.91227,12.7703
+analytic + best const R,bias 0.5,bias,0.5,first,True,1.01219,13.1122
+analytic + best const R,bias 1.5,bias,1.5,first,True,1.33307,16.1631
+analytic + best const R,bias 3.0,bias,3,first,True,1.99243,26.5695
+analytic + best const R,noise 0.5,noise_inflation,0.5,second,True,0.910725,13.5036
+analytic + best const R,noise 1.5,noise_inflation,1.5,second,True,0.90948,19.5077
+analytic + best const R,noise 3.0,noise_inflation,3,second,True,0.912224,39.8578
+adaptive R (Mehra),healthy,none,0,none,True,0.898961,9.98645
+adaptive R (Mehra),bias 0.5,bias,0.5,first,True,0.973355,10.0772
+adaptive R (Mehra),bias 1.5,bias,1.5,first,True,1.37028,10.7358
+adaptive R (Mehra),bias 3.0,bias,3,first,True,2.16826,12.7863
+adaptive R (Mehra),noise 0.5,noise_inflation,0.5,second,True,0.887783,10.1318
+adaptive R (Mehra),noise 1.5,noise_inflation,1.5,second,True,0.873798,11.3282
+adaptive R (Mehra),noise 3.0,noise_inflation,3,second,True,0.912298,15.3831
+health-conditioned,healthy,none,0,none,True,0.709089,10.0312
+health-conditioned,bias 0.5,bias,0.5,first,True,0.70385,9.96687
+health-conditioned,bias 1.5,bias,1.5,first,True,0.916024,10.0994
+health-conditioned,bias 3.0,bias,3,first,True,1.5489,11.1236
+health-conditioned,noise 0.5,noise_inflation,0.5,second,True,0.70975,10.6186
+health-conditioned,noise 1.5,noise_inflation,1.5,second,True,0.688568,15.2699
+health-conditioned,noise 3.0,noise_inflation,3,second,True,0.716414,30.4831
+layered,healthy,none,0,none,True,0.691322,8.7336
+layered,bias 0.5,bias,0.5,first,True,0.709638,8.68191
+layered,bias 1.5,bias,1.5,first,True,0.949612,8.66607
+layered,bias 3.0,bias,3,first,True,1.45713,8.58359
+layered,noise 0.5,noise_inflation,0.5,second,True,0.696453,9.0525
+layered,noise 1.5,noise_inflation,1.5,second,True,0.695992,9.6487
+layered,noise 3.0,noise_inflation,3,second,True,0.767721,10.2206
