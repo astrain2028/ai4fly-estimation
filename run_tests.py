@@ -54,6 +54,11 @@ TESTS = [
     "quad_sim/sensors.py",
     "quad_sim/faults.py",
     "quad_sim/measurement.py",
+    "deploy/export.py",
+    "deploy/runtime.py",
+    "deploy/mavlink_source.py",
+    "deploy/mavlink_sink.py",
+    "deploy/pi_main.py",
 ]
 
 # Minutes each, and they retrain models or sweep parameters. Worth running
@@ -82,6 +87,11 @@ SLOW = [
     "quad_sim/linearity.py",
     "quad_sim/make_dataset.py",
     "quad_sim/train.py",
+    "quad_sim/bakeoff.py",
+    "quad_sim/health_readout.py",
+    "experiments/reproducibility.py",
+    "experiments/frozen.py",
+    "experiments/scatter.py",
 ]
 
 # Per test, in seconds. The Gaussian process sets this: its self-test has run

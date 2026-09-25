@@ -337,6 +337,26 @@ Gaussian has stopped being adequate, and splitting a mixture component when
 it has. Nothing here detects that condition, and the fault modes most likely
 to cause it are the ones this project intends to inject.
 
+DeMars et al. repair the Gaussian assumption from inside. Jah and Haslett [28]
+abandon it: the Epistemic Support-Point Filter maintains a region of
+plausibility rather than a posterior, updating it by compatibility with each
+measurement and pruning by surprisal, with sigma-point-style quadrature setting
+how widely it disperses. The stated motivation is the failure this project
+keeps meeting — probabilistic estimators collapse ignorance into a scalar
+belief and become overconfident where sensing is sparse or unreliable — and Jah
+[29] later proves the filter optimal, in a possibilistic minimax-entropy sense,
+among evidence-only recursive estimators.
+
+Two cautions on how far the citation reaches. Neither paper models sensor
+faults or health, and neither reports NIS or NEES, so they bear on the
+Gaussian assumption and not on any result here. And "epistemic" means
+something different in them. Here it is a Bayesian quantity, the variance of
+a posterior over network weights. There it is ignorance represented
+non-probabilistically, as what has not been ruled out. The two share a
+motivation and no formalism, and a comparison would need a common metric that
+neither the possibilistic filter's outputs nor a chi-square consistency test
+provides directly.
+
 ## Evaluation
 
 Filter consistency is the primary criterion, following Chen et al. [11], [12]:
@@ -392,7 +412,7 @@ empirical.
 | `models/health/measurement.py` | The thirteen-state filter: six health entries, a constraint keeping them non-negative, and the widened `Q` and `P0` |
 | `models/combined/measurement.py` | Health plus an adaptive multiplier on `R`, for the fault family health structurally cannot see |
 | `models/layered/measurement.py` | The same two mechanisms added rather than multiplied, so the floor is `max(0, ·)` instead of a tuned constant. Four constants become one |
-| `models/doubt/` | Laplace on the health model, with the epistemic term setting how fast the adaptive layer may move. Kept out of `common.ARMS` — see the note there |
+| `models/doubt/` | Laplace on the health model, with the epistemic term setting how fast the adaptive layer may move. Learning the adaptation rate has prior art in [24]. Kept out of `common.ARMS` — see the note there |
 | `models/mmae/measurement.py` | Multiple-model adaptive estimation: a bank of filters, one per failure hypothesis, blended by posterior probability. The classical baseline, and complementarity by enumeration |
 | `models/*/measurement.py` | Each arm on one interface: states in, readings out, and a per-step covariance where the arm has one |
 | `robot/make_dataset.py` | Regenerates the healthy dataset, with sensor noise growth, encoder resolution, and vehicle calibration error as parameters |
@@ -407,6 +427,16 @@ empirical.
 | `experiments/sensitivity.py` | One question per tuned constant: does halving or doubling it change any conclusion |
 | `experiments/timing.py` | Cost per filter step with warmup, repeats and a median, and a star on any row too variable to quote |
 | `experiments/figures.py` | The figures, drawn from the csv rather than recomputed, so a figure cannot disagree with its table |
+| `experiments/reproducibility.py` | Whether a retrain from the fixed seed reproduces the saved model. It does, bit-exactly |
+| `experiments/scatter.py` | Whether the UKF's claimed measurement scatter matches the empirical one. On the quadcopter it is 8× low, which is why covariance matching over-inflates `R` there |
+| `experiments/frozen.py` | A three-line variance check for a frozen sensor, in front of the analytic model and of `layered` alike, against the fault the taxonomy cannot place |
+| `quad_sim/health_readout.py` | Whether the quadcopter's health entries read as severities, in the deployed configuration. They do not, which is why the level alert is off for that vehicle |
+| `deploy/export.py` | The trained model exported to numpy, verified against the torch path to float32 rounding. 224 MB → 28 MB resident |
+| `deploy/runtime.py` | The estimator as it runs on the vehicle: a plain loop, measured intervals, predict-only steps for dropped readings, one log row per step. numpy only |
+| `deploy/mavlink_source.py` | A MAVLink stream as a source for the runtime, via `SCALED_IMU`, requesting it at the filter rate. Written against the API; never run against a link |
+| `deploy/mavlink_sink.py` | The return path: health estimates and NIS to the flight controller as `NAMED_VALUE_FLOAT`, alerts as `STATUSTEXT`. Verified over a UDP loopback |
+| `deploy/pi_main.py` | The companion-computer process: source, estimator, sink and log in one loop, with reconnect. Its self-test runs it against a simulated vehicle over loopback |
+| `deploy/pi/` | The systemd unit and the wiring, parameters and first-log checks for a Raspberry Pi 5 and CubeOrange. Unconfirmed on hardware |
 | `experiments/calibration.py` | Test 1: what a hand-written measurement model is worth when the vehicle differs from its specification |
 | `experiments/heteroscedasticity.py` | Test 2: when a state-dependent covariance starts earning its cost, swept from homoscedastic upward |
 | `experiments/envelope.py` | Test 3: whether the model reports its own ignorance outside the states it was trained on, and at what cost |
@@ -422,7 +452,11 @@ empirical.
 Model weights and the faulted datasets are **not** in the repository — the
 generator is the artefact worth keeping rather than its output. That makes
 `requirements.txt` load-bearing, since every learned arm has to be retrained
-from source before it will run.
+from source before it will run. `experiments/reproducibility.py` checks that
+this actually holds: two training runs from the fixed seed produce identical
+weights, and a full 80-epoch retrain reproduces the saved health model — the
+one `combined`, `layered` and `doubt` all load — to a largest weight
+difference of 0.0 and a largest output difference of 0.0.
 
 Each row carries a `run` column. Splits must be made by run rather than by
 row: the gyro bias is drawn once per run and shared by every sample in it, so
@@ -482,6 +516,14 @@ python quad_sim/linearity.py    # is the quad map nonlinear enough to matter?
 python quad_sim/make_dataset.py 400
 python quad_sim/train.py        # network against least squares, per channel
 python quad_sim/measurement.py  # layered, on a map that is actually curved
+
+python experiments/reproducibility.py --full   # does a retrain match the saved model?
+python experiments/scatter.py            # why covariance matching loses on the quad
+python experiments/frozen.py             # a three-line detector against a stuck sensor
+
+python deploy/export.py         # weights to numpy, verified against torch
+python deploy/runtime.py        # the vehicle-side loop, on a replayed run
+python deploy/pi_main.py        # the whole Pi process, against a fake vehicle
 
 python run_tests.py             # every self-test above, in dependency order
 python run_tests.py --all       # including the slow ones
@@ -618,6 +660,12 @@ analytic model was built with, which is the ordinary condition of hardware.
 | 1% | 0.0114 | 0.0066 | 0.0074 |
 | 3% | 0.0309 | 0.0057 | 0.0080 |
 
+The 0% row does not match the healthy table above for the two learned arms
+(0.0063 against 0.0056, 0.0087 against 0.0055). Tests 1–3 predate
+`experiments/bakeoff.py` and each ran on its own seeds, which is the
+stitching problem that file was written to end; their columns are
+comparable within a test and not across tests.
+
 The crossover is below one per cent, and by three per cent the analytic
 model's NEES reaches 30.3 while the learned arms are unmoved. A learned map
 is not better because it is more expressive; it is better because it fits the
@@ -690,6 +738,12 @@ magnitude. A bias perturbs the first moment of the measurement distribution;
 noise inflation perturbs the second. The pairing is forced, and it is
 derivable before any experiment is run.
 
+That the crossing shows in *accuracy* here depends on something this
+simulator provides and a real vehicle would not: every arm starts level,
+because the analytic model is the truth. The quadcopter section below tests
+the same crossing on a nonlinear map, where the learned arm starts ahead, and
+finds it survives in calibration and not in accuracy.
+
 The calibration result is stronger than the accuracy one. Combined holds NIS
 between 1.66 and 3.02 across all seven conditions against a target of 3, where
 health alone reaches 10.18 on noise and the analytic model 17.39. On a vehicle
@@ -734,6 +788,20 @@ retraining — which points at the covariance rather than at training coverage.
 On `scale_error` the health estimate is driven to about 9 against a training
 ceiling of 3, so `R_model` is badly wrong, and multiplying a wrong covariance
 by a bounded factor leaves it wrong. 1.551 ms against combined's 1.554.
+
+Combining a learned covariance with online adaptation is an active area, and
+the form of the combination is what distinguishes the published approaches.
+Unscented KalmanNet [15] learns `Q` and `R` as bounded multiplicative
+corrections to a baseline — structurally the `combined` arm, and so subject to
+the failure above when the baseline is wrong. Majewski and Żugaj [24] keep the
+Sage-Husa estimator and learn its forgetting factor, scheduling a convex
+combination of prior and empirical covariance; that is close in spirit to
+`models/doubt`, which learns how fast the adaptive layer may move, and it
+predates it. Levy and Klein [25] and Diker and Klein [26] learn the process
+noise `Q` alongside innovation-based adaptation. None of these conditions the
+covariance on sensor health, none combines a learned `R` with a
+covariance-matching residual additively, and only [15] reports consistency
+rather than RMSE alone.
 
 **Cost per filter step**, measured with warmup, repeats and a median, because
 the same arm has been recorded at 23, 29, 96 and 567 ms on one machine in one
@@ -797,18 +865,172 @@ Curved map, the network wins by 90%; straight map, it loses by 14% — and that
 14% is the entire ground-robot result reproduced as one row inside the quad
 study. One experiment, both signs.
 
-In the filter that is 1.156° to 0.521° on *healthy* flights, NIS 12.60 to
-8.45 against a target of 9. On the robot the healthy column is unwinnable by
+In the filter, on the six-flight self-test in `quad_sim/measurement.py`,
+that is 1.156° to 0.521° on *healthy* flights, NIS 12.60 to 8.45 against a
+target of 9; the eight-flight sweep below, flown on different trajectories,
+gives 0.912° to 0.691° for the same pair. On the robot the healthy column is unwinnable by
 construction, since the simulator generates readings from the equations the
 analytic model uses. Here the analytic model is exact too and still loses,
 because the filter is what is approximate: a constant `R` cannot cover
 accelerometer noise that varies 4.2× across a run.
 
+That is not the only reason the analytic filter is overconfident here. Jiang,
+Shi and Moura [27] prove that nonlinear Kalman filters — the UKF included —
+systematically underestimate the posterior covariance when the measurement
+model is nonlinear, independently of how `R` is chosen. The two causes compound
+on this vehicle and neither arises on the ground robot, whose map is linear.
+
+**Does the crossing survive a nonlinear map?** `quad_sim/bakeoff.py` runs
+the same four arms, on the same seeds, with one device degraded. The
+derivation from `∂h/∂m` says nothing about whether `h` is linear, so the
+crossing ought to transfer; the prediction was written into the file before
+the run. Attitude error over roll and pitch, degrees, accelerometer degraded:
+
+| | healthy | bias 3.0 | noise 3.0 |
+|---|---|---|---|
+| analytic + best const | 0.912 | 2.229 | 0.991 |
+| adaptive R *(magnitude)* | 0.899 | 2.850 | 1.560 |
+| health-conditioned *(direction)* | **0.709** | **0.941** | **0.806** |
+| layered | 0.691 | 1.031 | 1.098 |
+
+**On accuracy, the crossing does not survive.** Health wins both columns, and
+adaptive — which moment order says should own the noise fault — is the worst
+arm on it, worse than doing nothing. On calibration it does:
+
+| NIS, target 9 | bias 3.0 | noise 3.0 |
+|---|---|---|
+| analytic | 30.04 | 39.25 |
+| adaptive R | 13.39 | **15.45** |
+| health-conditioned | **10.70** | 32.06 |
+| layered | 8.16 | 10.01 |
+
+Health beats adaptive on bias; adaptive beats health on noise, where health's
+32 is exactly the overconfidence `∂h/∂m = 0` predicts — it never widens `R`
+for a fault it cannot see. Layered holds within 14% of target on every
+condition, on both simulators.
+
+Two things separate accuracy from calibration here, and a second run with the
+magnetometer degraded instead — `--device=mag` — was needed to tell them
+apart, because on the accelerometer alone they are confounded.
+
+The first is which sensor broke. Roll and pitch are observed mainly through
+the accelerometer, so covariance matching's response to a noisy one — trust
+it less — costs the scored states directly: adaptive's error rises 74% under
+accelerometer noise. The magnetometer mostly informs yaw, which is not scored,
+and under magnetometer noise adaptive's error rises 1.5%. That is the known
+cost of accelerometer down-weighting in attitude estimation, and it is why
+the adaptive arm looks harmed on one device and unharmed on the other.
+
+The second is where accuracy starts. On the ground robot the analytic model
+is the truth, so every arm begins level and the accuracy crossing measures
+fault handling and nothing else. Here the learned map begins 22% ahead of the
+analytic model on healthy flights, and a fault that barely touches the scored states leaves that
+lead intact: under magnetometer noise health still wins, 0.716° to 0.912°,
+not because it handled the fault better but because nothing moved. **The
+accuracy crossing needs a level healthy baseline, and a nonlinear map does
+not provide one.** Calibration has no such dependency — NIS asks whether the
+claimed uncertainty matches reality, wherever accuracy started — which is why
+it transfers and accuracy does not.
+
+So the defensible form of the claim is narrower than the one the ground robot
+suggested: moment order predicts which mechanism keeps the filter consistent
+under a fault, on a linear map and a nonlinear one alike. It predicts
+accuracy only where the arms start level, which a learned nonlinear map
+precludes by winning the healthy case.
+
+One anomaly needed its own experiment. Adaptive is worse than the analytic
+model on bias faults here — 2.850 against 2.229 on the accelerometer, 2.168
+against 1.992 on the magnetometer — where on the ground robot it was better.
+Mehra's estimator is a subtraction: it takes the innovation covariance the
+filter observes, removes the measurement scatter the filter *claims* over its
+sigma points, and attributes the remainder to `R`. That is exact when the
+claimed scatter is right. `experiments/scatter.py` compares the claimed
+scatter to the empirical one on healthy runs of both vehicles, per channel:
+
+| | claimed / empirical |
+|---|---|
+| ground robot, median over 3 channels | 0.48× |
+| quadcopter, median over 9 channels | **8.2×** |
+| quadcopter, `accel_z` | **87×** |
+
+The quadcopter's filter claims an order of magnitude less scatter than its
+innovations show, and worst on the accelerometer channels — the ones roll and
+pitch are observed through. Mehra's subtraction then leaves that missing
+scatter in `R`, inflates it, and the filter trusts exactly the sensors it
+most needs. This is [27]'s result — nonlinear Kalman filters systematically
+underestimate the posterior covariance — appearing as a bias in a classical
+estimator that consumes that covariance, and it is not specific to Mehra:
+any adaptive method that reads `R` off the innovations inherits it on a
+nonlinear map. The ground robot never showed it because its map is linear and
+the claimed scatter is, if anything, slightly high. Sweeps are in
+`results/quad_bakeoff.csv`, `results/quad_bakeoff_mag.csv` and
+`results/scatter.csv`.
+
+**Do the health entries mean what they are called?** On the ground robot
+they do: `experiments/health_value.py` shows the entry for a degraded sensor
+tracking the severity injected. The quadcopter bakeoff scored accuracy and
+NIS and never asked. `quad_sim/health_readout.py` asks, in the deployed
+configuration, with a fault arriving halfway through the flight; the entry
+should settle near the severity:
+
+| severity 3 from mid-flight | entry's final value |
+|---|---|
+| accelerometer bias | 0.95 |
+| gyro bias | 0.68 |
+| magnetometer bias | 4.60 |
+| accelerometer noise | 0.05 |
+| gyro noise | 0.10 |
+| magnetometer noise | 2.65 |
+| *healthy flight, worst entry, 3 of 8 flights* | *2.0 to 4.8* |
+
+They do not. Accelerometer and gyro faults barely move their entries, the
+magnetometer's entries respond to faults and equally to nothing, and on three
+of eight healthy flights one entry sits above 2 for nearly the whole flight.
+The entries earn their place by improving accuracy — the bakeoff table above
+stands — but what they absorb on this vehicle is measurement-map error as
+much as sensor fault, and the entry's value does not say which. The likely
+reason is visible in the linearity table: the network's residual on the
+magnetometer channels, 0.027, is 1.5× that device's healthy noise, so the
+filter has a severity-1.5-sized discrepancy to explain on every healthy
+flight and a bias entry that will explain it. On the robot the map is linear,
+the residual sits at the noise floor, and there is nothing to absorb. That is
+a hypothesis; what is established is the table.
+
+The consequence for deployment is concrete. `deploy/pi_main.py` reports the
+entries as named values and does not alarm on them for the quadcopter, and
+the robot's health-tracking result should not be read as transferring to a
+nonlinear map without this check.
+
 ### What is still open
 
 `stuck` and `dropout` fall outside the moment-order taxonomy — a frozen
-reading neither shifts the mean predictably nor widens the spread — and a
-three-line variance check may beat the learned machinery on the first of them.
+reading neither shifts the mean predictably nor widens the spread. For the
+first of them the question was whether a variance check over the last few
+readings beats the learned machinery, and `experiments/frozen.py` answers it:
+
+| left encoder frozen for half the run | speed error | vs analytic |
+|---|---|---|
+| analytic | 0.2212 | — |
+| analytic + three-line detector | **0.0077** | **−97%** |
+| layered | 0.1806 | −18% |
+| layered + detector | 0.0086 | −96% |
+
+The detector recovers 97% of the gap on its own, and `layered` adds nothing
+on top of it. That fault wants three lines of numpy and not a learned model,
+which is the honest recommendation and a better one than a network that
+underperforms quietly.
+
+The naive detector has a flaw that the same run exposes. It fires on any five
+identical readings, and the encoders are quantised, so a healthy channel at
+low wheel speed legitimately repeats a tick count and gets switched off —
+about 73 false alarms per run, costing 12% on healthy runs. Quantisation
+dwell is short and a freeze is not, so the window length settles it: at 25
+steps — half a second — the detector still catches 100% of the frozen
+stretch, false alarms fall to 2.5 per run, the healthy-run cost disappears
+(0.0052, the analytic figure), and the worst-case error is 0.0086 against
+0.0077 at five steps. Both windows are in `results/frozen.csv` and
+`results/frozen_w25.csv`. `dropout` costs every arm about 1.3× its healthy
+error and does not need solving.
 
 Nothing here detects when the posterior stops being approximately Gaussian,
 and degraded sensors are exactly where that is least safe.
@@ -817,7 +1039,15 @@ A fault arriving mid-run still costs `combined` about half again over the same
 fault present from the start, after retraining on transitions brought it down
 from 94%.
 
-And none of it has touched hardware, real logs, or SITL.
+On the quadcopter the health entries improve the estimate without reading as
+severities. Whether that is the map's residual error being absorbed, as
+suggested above, and whether a better-fit map or a stronger prior on the
+entries would restore the readout, is untested. Until it is, the health
+arm's diagnostic claim holds on the linear vehicle only.
+
+And none of it has touched hardware, real logs, or SITL. The companion
+computer process in `deploy/` has run against a simulated vehicle over a
+loopback and nothing else.
 
 ## References
 
@@ -885,6 +1115,16 @@ International Conference on Robotics and Automation*, pp. 1436–1443, 2018.
 Deep Learning with Calibrated Posterior Uncertainty under Incomplete Physics
 and Unknown Noise," 2026. [arXiv:2608.04201](https://arxiv.org/abs/2608.04201)
 
+[24] K. Majewski and M. Żugaj, "Learned Memory Attenuation in Sage-Husa Kalman
+Filters for Robust UAV State Estimation," 2026.
+[arXiv:2605.18704](https://arxiv.org/abs/2605.18704)
+
+[25] A. Levy and I. Klein, "Adaptive Neural Unscented Kalman Filter," 2025.
+[arXiv:2503.05490](https://arxiv.org/abs/2503.05490)
+
+[26] B. Diker and I. Klein, "Neural Aided Adaptive Innovation-Based Invariant
+Kalman Filter," 2026. [arXiv:2603.26709](https://arxiv.org/abs/2603.26709)
+
 **Heteroscedastic regression and predictive uncertainty**
 
 [7] M. Seitzer, A. Tavakoli, D. Antic, and G. Martius, "On the Pitfalls of
@@ -936,6 +1176,18 @@ Guidance, Control, and Dynamics*, vol. 36, no. 4, pp. 1047–1057, 2013.
 B. M. Argrow, "'A Good Bot Always Knows Its Limitations': Assessing Autonomous
 System Decision-making Competencies through Factorized Machine
 Self-confidence," 2024. [arXiv:2407.19631](https://arxiv.org/abs/2407.19631)
+
+[27] S. Jiang, J. Shi, and S. Moura, "Mitigating Overconfidence in Nonlinear
+Kalman Filters via Covariance Recalibration," *Automatica*, accepted.
+[arXiv:2407.05717](https://arxiv.org/abs/2407.05717)
+
+[28] M. Jah and V. Haslett, "The Epistemic Support-Point Filter (ESPF): A
+Bounded Possibilistic Framework for Ordinal State Estimation," 2025.
+[arXiv:2508.20806](https://arxiv.org/abs/2508.20806)
+
+[29] M. K. Jah, "The Epistemic Support-Point Filter: Jaynesian Maximum Entropy
+Meets Popperian Falsification," 2026.
+[arXiv:2603.10065](https://arxiv.org/abs/2603.10065)
 
 ## Status
 
