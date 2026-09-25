@@ -97,6 +97,9 @@ train = _load(HERE / "train.py", "quad_train")
 layered = _load(ROOT / "models" / "layered" / "measurement.py", "layered_algebra")
 ukf = _load_borrowing(ROOT / "robot" / "ukf.py", "robot_ukf_for_quad",
                       ROOT / "robot", shadows=("dynamics", "sensors"))
+adaptive = _load_borrowing(ROOT / "models" / "adaptive" / "measurement.py",
+                           "adaptive_for_quad", ROOT / "robot",
+                           shadows=("dynamics", "sensors", "ukf"))
 bhr = train.bhr
 
 N_VEHICLE = 6
@@ -137,6 +140,15 @@ def analytic_readings(states):
     """
     states = np.atleast_2d(states)
     return dynamics_readings(states)
+
+
+def adaptive_arm(R):
+    """Mehra covariance matching over the quadcopter's analytic model.
+
+    The same estimator the ground robot uses, given this vehicle's
+    measurement function rather than a copy written for nine channels.
+    """
+    return adaptive.AdaptiveR(R, readings=dynamics_readings)
 
 
 def dynamics_readings(states):
