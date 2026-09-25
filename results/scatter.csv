@@ -1,0 +1,13 @@
+vehicle,channel,claimed,empirical,ratio
+ground robot,left_enc,0.0157692,0.00824943,0.523135
+ground robot,right_enc,0.0157692,0.00752397,0.477129
+ground robot,gyro,0.00031637,0.00011261,0.355945
+quadcopter,accel_x,0.00223209,0.0446835,20.0187
+quadcopter,accel_y,0.00225509,0.018584,8.24092
+quadcopter,accel_z,0.000204923,0.0179061,87.3796
+quadcopter,gyro_x,0.00208534,0.00368728,1.76819
+quadcopter,gyro_y,0.00208534,0.00372728,1.78737
+quadcopter,gyro_z,0.00208534,0.00185515,0.889614
+quadcopter,mag_x,4.21123e-05,0.000419888,9.97069
+quadcopter,mag_y,4.32882e-05,0.000119887,2.7695
+quadcopter,mag_z,5.09108e-06,6.0213e-05,11.8271
