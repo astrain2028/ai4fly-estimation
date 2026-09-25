@@ -64,7 +64,17 @@ class AdaptiveR:
     `observe` after each step, and this object listens.
     """
 
-    def __init__(self, start_R, window=WINDOW, blend=BLEND, floor=FLOOR):
+    def __init__(self, start_R, window=WINDOW, blend=BLEND, floor=FLOOR,
+                 readings=expected_readings):
+        """`readings` is the analytic measurement model the covariance sits on.
+
+        It defaults to the ground robot's. quad_sim passes its own, so that
+        both simulators run this estimator rather than each carrying a
+        version of covariance matching -- which they did, briefly, and the
+        quadcopter's copy turned out to be a different algorithm under the
+        same name.
+        """
+        self.readings = readings
         self.start_R = np.asarray(start_R, dtype=float)
         self.R = self.start_R.copy()
         self.history = deque(maxlen=window)
@@ -77,7 +87,7 @@ class AdaptiveR:
     def __call__(self, states):
         """Same readings as the hand-written model, plus the current R."""
         states = np.atleast_2d(states)
-        readings = expected_readings(states)
+        readings = self.readings(states)
         R = np.repeat(self.R[None, :, :], len(states), axis=0)
         return readings, R
 
