@@ -16,6 +16,8 @@ ratios between rows.
     python figures/frozen.py
 """
 
+import textwrap
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator, FixedFormatter, NullLocator
@@ -66,6 +68,11 @@ def signed(fraction):
 def count(v):
     """A count as the csv means it: whole when large, one decimal when not."""
     return "%.0f" % v if v >= 10 else ("%.1f" % v).rstrip("0").rstrip(".")
+
+
+def span_of(values, fmt=count):
+    lo, hi = min(values), max(values)
+    return fmt(lo) if fmt(lo) == fmt(hi) else "%s–%s" % (fmt(lo), fmt(hi))
 
 
 # ---------------------------------------------------------------- marks
@@ -121,23 +128,30 @@ def side_labels(ax, items, theme, side="left", dx=8, min_gap=13, size=8.5):
                 va="center", fontsize=size, color=theme.ink, clip_on=False)
 
 
-def check_keys(fig, theme, x_in, y_in, gap=0.30):
-    """Legend keys for the fill encoding, continuing a style.legend_row."""
+def check_key(fig, theme, x_in, y_in):
+    """The fill encoding, keyed as a miniature of the marks it explains:
+    "with the check ●——○ without it", continuing a style.legend_row. Drawn
+    as a dumbbell rather than two loose dots so the filled end cannot be
+    read as a third, gray arm."""
     w, h = fig.get_figwidth(), fig.get_figheight()
     renderer = fig.canvas.get_renderer()
     y = 1 - y_in / h
-    for label, hollow in (("filter as it is", True),
-                          ("same filter with the check", False)):
+    t = fig.text(x_in / w, y, "with the check", ha="left", va="center",
+                 fontsize=9, color=theme.ink2)
+    a = x_in + t.get_window_extent(renderer).width / fig.dpi + 0.14
+    b = a + 0.34
+    fig.add_artist(plt.Line2D([a / w, b / w], [y, y], color=theme.ink2,
+                              linewidth=style.px(2), solid_capstyle="butt",
+                              transform=fig.transFigure))
+    for x, hollow in ((a, False), (b, True)):
         fig.add_artist(plt.Line2D(
-            [(x_in + 0.06) / w], [y], linestyle="none", marker="o",
+            [x / w], [y], linestyle="none", marker="o",
             markersize=style.px(9),
             markerfacecolor=theme.surface if hollow else theme.ink2,
             markeredgecolor=theme.ink2 if hollow else theme.surface,
             markeredgewidth=style.px(2), transform=fig.transFigure))
-        x_in += 0.18
-        t = fig.text(x_in / w, y, label, ha="left", va="center", fontsize=9,
-                     color=theme.ink2)
-        x_in += t.get_window_extent(renderer).width / fig.dpi + gap
+    fig.text((b + 0.14) / w, y, "without it", ha="left", va="center",
+             fontsize=9, color=theme.ink2)
 
 
 # ---------------------------------------------------------------- figure
@@ -160,12 +174,45 @@ def draw(theme):
              for c in faulted]
     hits = [value(frames, w, a + CHECK, c.condition, "hit")
             for w in FILES for a, _ in ARMS for c in faulted]
-    alarms = {w: np.mean([value(frames, w, a + CHECK, c.condition, "false")
-                          for a, _ in ARMS for c in faulted]) for w in FILES}
-    fewer = 1 - alarms[DEPLOY] / alarms[SHORT]
-    lo, hi = 100 * min(cut), 100 * max(cut)
-    span = ("%.0f%%" % lo if round(lo) == round(hi)
-            else "%.0f–%.0f%%" % (lo, hi))
+    alarms = {w: [value(frames, w, a + CHECK, c.condition, "false")
+                  for a, _ in ARMS for c in faulted] for w in FILES}
+    fewer = 1 - np.mean(alarms[DEPLOY]) / np.mean(alarms[SHORT])
+    span = span_of([100 * c for c in cut], lambda v: "%.0f" % v) + "%"
+    healthy = conditions[0].condition
+    # Does the check leave a fault-free run exactly as it was? At a given
+    # window, a flag on any healthy step would change the filter's output.
+    untouched = {w: all(abs(checked(a, healthy, w) - bare(a, healthy)) < 1e-12
+                        for a, _ in ARMS) for w in FILES}
+
+    # What a counted false alarm is. experiments/frozen.py starts the scored
+    # freeze only once the window is full of frozen steps, so the first
+    # WINDOW - 1 frozen steps count as false if flagged -- and the last of
+    # them always is, because the last good reading equals the frozen one.
+    # A flag on a healthy step before the freeze would also land on the
+    # fault-free run of the same seed, whose readings are identical there.
+    if untouched[DEPLOY]:
+        onset = ("At %d steps no fault-free run changes, so all %s per run "
+                 "are such steps; at %d steps at most %d of the %s can be."
+                 % (DEPLOY, span_of(alarms[DEPLOY]), SHORT, SHORT - 1,
+                    span_of(alarms[SHORT])))
+    else:
+        onset = ("At most %d (%d steps) and %d (%d steps) per run can be "
+                 "such steps." % (DEPLOY - 1, DEPLOY, SHORT - 1, SHORT))
+    note = textwrap.fill(
+        "Ground-robot simulation, experiments/frozen.py; the encoder freezes "
+        "at its last good reading. Frozen rows are scored over the frozen "
+        "stretch, fault-free rows over the whole run. Marks are means over "
+        "the experiment's seeds; the csv has no per-seed rows, so there are "
+        "no bands. On its own, layered changes the frozen-stretch error "
+        "by %s to %s against analytic. The scoring starts a freeze only once "
+        "the window is full of frozen readings, so flags on its first steps "
+        "(%d at %d steps, %d at %d) count as false alarms, and the last of "
+        "them is always flagged, since the last good reading equals the "
+        "frozen one. %s Sources: results/frozen.csv (%d-step window), "
+        "results/frozen_w25.csv (%d-step)."
+        % (signed(min(alone)), signed(max(alone)), DEPLOY - 1, DEPLOY,
+           SHORT - 1, SHORT, onset, SHORT, DEPLOY), 166)
+    note_in = 0.12 + 0.146 * (note.count("\n") + 1)
 
     # Vertical layout, in inches from the top, worked out before the figure
     # exists because the header places itself by the figure's height.
@@ -186,7 +233,7 @@ def draw(theme):
     sec = top + ph + 0.66                       # lower section heading
     mini_top = sec + 1.14                       # lower panels
     mh = 0.98
-    W, H = style.WIDTH, mini_top + mh + 1.12
+    W, H = style.WIDTH, mini_top + mh + 0.44 + note_in
 
     fig = style.figure(H, theme)
     used = style.header(
@@ -207,8 +254,8 @@ def draw(theme):
                                   for arm, _ in ARMS], legend_y)
     renderer = fig.canvas.get_renderer()
     end = fig.texts[-1].get_window_extent(renderer).x1 / fig.dpi
-    # A wider gap: the fill keys are a second idea, not two more arms.
-    check_keys(fig, theme, end + 0.56, legend_y)
+    # A wider gap: the fill key is a second idea, not two more arms.
+    check_key(fig, theme, end + 0.56, legend_y)
 
     # ------------------------------------------------ upper: both panels
     left1, w1 = 1.72, 3.78
@@ -240,17 +287,25 @@ def draw(theme):
         ax.set_xlabel("log scale", fontsize=8.5, color=theme.muted,
                       labelpad=4)
 
-    # The consistency target, one per live channel.
+    # The consistency target, one per live channel: 3 for the whole panel,
+    # and 2 for the checked dots on the frozen rows, where the check has
+    # switched one channel off.
     ax2.axvline(CHANNELS, color=theme.ink2, linewidth=style.px(1), zorder=1)
     ax2.text(CHANNELS, y_top, " target %d" % CHANNELS, ha="left",
              va="top", fontsize=7.5, color=theme.ink2)
     ax2.text(ax2.get_xlim()[1], y_top, "overconfident →", ha="right",
              va="top", fontsize=7.5, color=theme.muted, bbox=halo(theme))
+    first = min(y for y, c, _ in rows if c.fraction > 0) - 0.5
+    ax2.plot([CHANNELS - 1] * 2, [first, y_bot], color=theme.ink2,
+             linewidth=style.px(1), solid_capstyle="butt", zorder=1)
+    ax2.text(CHANNELS - 1, first, " target %d, one channel off"
+             % (CHANNELS - 1), ha="left", va="bottom", fontsize=7.5,
+             color=theme.ink2, bbox=halo(theme), zorder=2)
 
     # Row and group labels, in the left margin.
     margin = blended_transform_factory(fig.transFigure, ax1.transData)
     for y, cond, arm in rows:
-        ax1.text(-0.1, y, arm, transform=blended_transform_factory(
+        ax1.text(-0.07, y, arm, transform=blended_transform_factory(
             ax1.transAxes, ax1.transData), ha="right", va="center",
             fontsize=8.5, color=theme.ink2)
     for cond in conditions:
@@ -263,11 +318,16 @@ def draw(theme):
     def label(ax, x, y, text, side=1):
         """A value beside its mark, on a surface halo so gridlines stop
         short of the digits."""
-        ax.annotate(text, (x, y), xytext=(side * style.px(8), 0),
-                    textcoords="offset points",
-                    ha="left" if side > 0 else "right", va="center",
-                    fontsize=8.5, color=theme.ink, bbox=halo(theme))
+        return ax.annotate(text, (x, y), xytext=(side * style.px(8), 0),
+                           textcoords="offset points",
+                           ha="left" if side > 0 else "right", va="center",
+                           fontsize=8.5, color=theme.ink, bbox=halo(theme))
 
+    # Selective values: every filter as it is (the error the check removes),
+    # the fault-free reference, and the checked end on the worst freeze
+    # only -- the other group's checked dots sit at the same place.
+    worst = faulted[-1].condition
+    free_labels = []
     for y, cond, arm in rows:
         c = colour[arm]
         name = cond.condition
@@ -277,7 +337,7 @@ def draw(theme):
             # Without a fault the two coincide; one dot, and the value.
             for ax, v in ((ax1, s0), (ax2, n0)):
                 filled(ax, v, y, theme, c)
-            label(ax1, s0, y, "%.4f" % s0)
+            free_labels.append(label(ax1, s0, y, "%.4f" % s0))
             continue
         for ax, v0, v1 in ((ax1, s0, s1), (ax2, n0, n1)):
             ax.plot([v1, v0], [y, y], color=c, linewidth=style.px(2),
@@ -285,25 +345,30 @@ def draw(theme):
             ring(ax, v0, y, theme, c)
             filled(ax, v1, y, theme, c)
         label(ax1, s0, y, "%.3f" % s0)
-        label(ax1, s1, y, "%.4f" % s1, side=-1)
+        if name == worst:
+            label(ax1, s1, y, "%.4f" % s1, side=-1)
         label(ax2, n0, y, "%.0f" % n0 if n0 >= 10 else "%.1f" % n0)
 
-    # The fault-free rows carry the check too; say that it changed nothing.
-    healthy = conditions[0].condition
-    same = all(abs(checked(a, healthy) - bare(a, healthy)) < 1e-12
-               for a, _ in ARMS)
-    if same:
+    # The fault-free rows carry the check too; say that it changed nothing,
+    # clear of the rightmost fault-free value.
+    if untouched[DEPLOY]:
         ys = [y for y, c, _ in rows if c == conditions[0]]
-        ax1.text(0.021, np.mean(ys), "unchanged by the check,\n"
-                 "to six figures",
+        right = max(t.get_window_extent(renderer).x1 for t in free_labels)
+        x = ax1.transData.inverted().transform(
+            (right + 0.34 * fig.dpi, 0))[0]
+        ax1.text(x, np.mean(ys), "unchanged by the check,\nto six figures",
                  ha="left", va="center", fontsize=8, color=theme.ink2,
                  linespacing=1.35, bbox=halo(theme))
 
     # ------------------------------------------------ lower: the window
+    if untouched[DEPLOY] and not untouched[SHORT]:
+        why = ("the same %.0f%% detection, and a fault-free run left "
+               "untouched" % (100 * min(hits)))
+    else:
+        why = ("the same %.0f%% detection with %.0f%% fewer false alarms"
+               % (100 * min(hits), 100 * fewer))
     fig.text(0.28 / W, 1 - sec / H,
-             "Why %d steps and not %d: the same %.0f%% detection with %.0f%% "
-             "fewer false alarms" % (DEPLOY, SHORT, 100 * min(hits),
-                                     100 * fewer),
+             "Why %d steps and not %d: %s" % (DEPLOY, SHORT, why),
              ha="left", va="top", fontsize=11.5, fontweight="semibold",
              color=theme.ink)
     fig.text(0.28 / W, 1 - (sec + 0.30) / H,
@@ -315,11 +380,10 @@ def draw(theme):
              ha="left", va="top", fontsize=9, color=theme.ink2,
              linespacing=1.45)
 
-    block, room_l, pw, gap = 2.64, 0.98, 1.02, 0.22
+    block, pw, gap = 2.64, 1.02, 0.22
     xs = [0, 1]
-    worst = faulted[-1].condition
 
-    def mini(i, title):
+    def mini(i, title, room_l=0.98):
         x0 = 0.28 + i * (block + gap)
         ax = fig.add_axes([(x0 + room_l) / W, 1 - (mini_top + mh) / H,
                            pw / W, mh / H])
@@ -334,7 +398,9 @@ def draw(theme):
         return ax
 
     # (a) false alarms: a property of the check, not of either arm, so ink.
-    ax = mini(0, "False alarms per run")
+    # Its labels are short on the left, so it gives its room to the right,
+    # where the 25-step value needs a qualifier.
+    ax = mini(0, "False alarms per run, as counted", room_l=0.62)
     fa = {w: [value(frames, w, "analytic" + CHECK, c.condition, "false")
               for c in faulted] for w in (SHORT, DEPLOY)}
     top_a = max(fa[SHORT]) * 1.12
@@ -348,12 +414,18 @@ def draw(theme):
                 zorder=3)
         for v in (l, u):
             filled(ax, x, v, theme, theme.ink2, size=8)
-    side_labels(ax, [(0, np.mean(a0), "%s–%s" % (count(a0[0]),
-                                                      count(a0[1])))],
-                theme, "left")
-    side_labels(ax, [(1, np.mean(a1), "%s–%s" % (count(a1[0]),
-                                                      count(a1[1])))],
-                theme, "right")
+    side_labels(ax, [(0, np.mean(a0), span_of(a0))], theme, "left")
+    side_labels(ax, [(1, np.mean(a1), span_of(a1))], theme, "right")
+    if untouched[DEPLOY]:
+        # No fault-free run changed, so none of these fell on a healthy
+        # step: they are the first frozen steps, flagged before the scoring
+        # starts counting the freeze (see the footnote).
+        ax.annotate("all at the start of\nthe freeze, none on\na healthy "
+                    "step", (1, np.mean(a1)),
+                    xytext=(style.px(8), style.px(12)),
+                    textcoords="offset points", ha="left", va="bottom",
+                    fontsize=8, color=theme.ink2, linespacing=1.35,
+                    annotation_clip=False)
 
     # (b) the cost of the check on a run with no fault at all.
     ax = mini(1, "Extra error on a fault-free run")
@@ -390,22 +462,7 @@ def draw(theme):
     side_labels(ax, [(1, err[a][1], "%.4f" % err[a][1]) for a, _ in ARMS],
                 theme, "right")
 
-    fractions = " and ".join("%.0f%%" % (100 * c.fraction) for c in faulted)
-    style.footnote(
-        fig, theme,
-        "Ground-robot simulation, experiments/frozen.py; the encoder freezes "
-        "at its last good reading. Frozen rows are scored over the frozen "
-        "stretch, fault-free\nrows over the whole run. Every mark is a mean "
-        "over the experiment's seeds; the csv has no per-seed rows, so there "
-        "are no bands. On its own, layered\nchanges the frozen-stretch error "
-        "by %s to %s against analytic. NIS target is %d, one per channel, "
-        "and %d once the frozen channel is switched off.\nFalse alarms are "
-        "healthy steps flagged in the %s frozen runs. Sources: "
-        "results/frozen.csv (%d-step window), results/frozen_w25.csv "
-        "(%d-step)."
-        % (signed(min(alone)), signed(max(alone)), CHANNELS, CHANNELS - 1,
-           fractions, SHORT, DEPLOY),
-        bottom=0.12)
+    style.footnote(fig, theme, note, bottom=0.12)
     return fig
 
 

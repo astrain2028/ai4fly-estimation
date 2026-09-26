@@ -56,45 +56,55 @@ GROUP = {"none": ("Reference", "no fault"),
 # Colour bins on the ratio to analytic, symmetric in log: halved, a fifth,
 # a twentieth either way. Seven bins for the seven diverging stops.
 EDGES = np.array([0.5, 0.8, 0.95, 1 / 0.95, 1.25, 2.0])
+NEUTRAL = 3         # the diverging stop for "within 5% of analytic"
 TIE = 0.01          # cells within 1% of the column's best are ringed too
+FAR = 0.5           # "by far": under half of every other arm's error
+EDGE = 0.02         # a lower-rung win by less than this is an edge
+
+CHANNEL = "left_encoder"        # where experiments/moments.py puts the fault
 
 
 # ---------------------------------------------------------------- data
 
-def verdict(rows, predicted):
-    """Which single-mechanism arm has the lower error in ``rows``."""
-    single = rows[rows["arm"].isin([HEALTH, ADAPTIVE])]
-    if not predicted or single["arm"].nunique() < 2:
+def verdict(err, predicted):
+    """Which single-mechanism arm has the lower error, judged as moments.py
+    judges it: idxmin over its rows, where adaptive R comes first, so a tie
+    goes to adaptive R."""
+    if not predicted or HEALTH not in err or ADAPTIVE not in err:
         return None
-    return single.loc[single["speed_rmse"].idxmin(), "arm"]
+    return HEALTH if err[HEALTH] < err[ADAPTIVE] else ADAPTIVE
 
 
 def scoreboard(data):
-    """Per mode: the top-of-ladder speed error of every arm present."""
+    """Per mode: every arm's speed error on every rung of the ladder, and the
+    verdict on each rung. The grid shows the top rung."""
     arms = [a for a in ORDER if a in set(data["arm"])]
     columns = []
     for mode in MODES:
         rows = data[data["mode"] == mode]
         if rows.empty:
             continue
-        top = rows[rows["severity"] == rows["severity"].max()]
-        low = rows[rows["severity"] == rows["severity"].min()]
-        err = {a: float(top.loc[top["arm"] == a, "speed_rmse"].iloc[0])
-               for a in arms if (top["arm"] == a).any()}
-        moment = top["moment"].iloc[0]
+        rungs = sorted(float(s) for s in rows["severity"].unique())
+        ladder = []
+        for severity in rungs:
+            at = rows[rows["severity"] == severity]
+            ladder.append({a: float(at.loc[at["arm"] == a, "speed_rmse"]
+                                    .iloc[0])
+                           for a in arms if (at["arm"] == a).any()})
+        err = ladder[-1]
+        moment = rows["moment"].iloc[0]
         best = min(err.values())
         predicted = EXPECTED.get(moment)
+        calls = [verdict(e, predicted) for e in ladder]
         columns.append({
             "mode": mode, "moment": moment,
-            "trained": bool(top["trained"].iloc[0]),
-            "severity": float(top["severity"].iloc[0]),
-            "low": float(low["severity"].iloc[0]),
-            "err": err,
+            "trained": bool(rows["trained"].iloc[0]),
+            "rungs": rungs, "severity": rungs[-1],
+            "ladder": ladder, "err": err,
             "ratio": {a: e / err[ANALYTIC] for a, e in err.items()},
             "best": [a for a in arms if a in err and err[a] <= best * (1 + TIE)],
             "predicted": predicted,
-            "actual": verdict(top, predicted),
-            "actual_low": verdict(low, predicted)})
+            "calls": calls, "actual": calls[-1]})
     return arms, columns
 
 
@@ -103,86 +113,222 @@ def join(words):
         ", ".join(words[:-1]) + " and " + words[-1]
 
 
+def tested(columns):
+    return [c for c in columns if c["actual"]]
+
+
 def headline(columns):
     """The finding in words, assembled from the verdicts rather than typed."""
-    tested = [c for c in columns if c["actual"]]
-    hits = [c for c in tested if c["actual"] == c["predicted"]]
-    misses = [c for c in tested if c not in hits]
-    unseen_hit = [NAME[c["mode"]] for c in hits if not c["trained"]]
-    unseen_miss = [NAME[c["mode"]] for c in misses if not c["trained"]]
-    seen_miss = [NAME[c["mode"]] for c in misses if c["trained"]]
+    judged = tested(columns)
+    hits = [c for c in judged if c["actual"] == c["predicted"]]
+    misses = [c for c in judged if c not in hits]
+    held_hit = [NAME[c["mode"]] for c in hits if not c["trained"]]
+    held_miss = [NAME[c["mode"]] for c in misses if not c["trained"]]
+    trained_miss = [NAME[c["mode"]] for c in misses if c["trained"]]
+    # The grid is the top rung. If a lower rung judges differently, say so.
+    steady = all(len(set(c["calls"])) == 1 for c in judged)
+    where = "" if steady else " at full severity"
     if not misses:
-        text = "Moment order called all %d faults right" % len(tested)
-        return text + (", unseen %s included" % join(unseen_hit)
-                       if unseen_hit else "")
+        text = "Moment order got all %d calls right%s" % (len(judged), where)
+        return text + (", held-out %s included" % join(held_hit)
+                       if held_hit else "")
     parts = []
-    if unseen_hit:
-        parts.append("unseen %s yes" % join(unseen_hit))
-    if unseen_miss:
-        parts.append("unseen %s no" % join(unseen_miss))
-    if seen_miss:
-        parts.append("trained %s no" % join(seen_miss))
-    return ("Moment order called %d of %d faults right — %s"
-            % (len(hits), len(tested), ", ".join(parts)))
+    if held_hit:
+        parts.append("held-out %s yes" % join(held_hit))
+    if held_miss:
+        parts.append("held-out %s no" % join(held_miss))
+    if trained_miss:
+        parts.append("trained-on %s no" % join(trained_miss))
+    return ("Moment order got %d of %d calls right%s — %s"
+            % (len(hits), len(judged), where, ", ".join(parts)))
 
 
 def notes(columns):
     """What the grid adds beyond the verdict, as (lead, sentence) pairs built
     from the numbers rather than typed."""
-    out = []
-    by_mode = {c["mode"]: c for c in columns}
-
-    for c in columns:
-        if not c["actual"] or c["actual"] == c["predicted"]:
-            continue
-        r = c["ratio"]
-        if "layered" in r and "layered" in c["best"]:
-            pairs = [(style.SHORT[a], percent(r[a]))
-                     for a in ("combined", ADAPTIVE) if a in r]
-            others = (["%s manages %s" % pairs[0]]
-                      + ["%s %s" % p for p in pairs[1:]]) if pairs else []
-            out.append(("Where it missed",
-                        "layered is best by far: on %s its error is %s "
-                        "against analytic, where %s. It adds its residual "
-                        "variance where combined multiplies one."
-                        % (NAME[c["mode"]], percent(r["layered"]),
-                           join(others) if others
-                           else "no other arm comes close")))
-
+    out = [("Where it missed", missed(c)) for c in tested(columns)
+           if c["actual"] != c["predicted"]]
     neither = [c for c in columns if c["moment"] == "neither"]
     if neither:
-        said = []
-        for c in neither:
-            if c["best"] == [ANALYTIC]:
-                said.append("nothing beats analytic on %s" % NAME[c["mode"]])
-            else:
-                said.append("%s is best on %s" % (
-                    join([style.SHORT[a] for a in c["best"]]), NAME[c["mode"]]))
-        out.append(("No call made",
-                    "the frozen and missing faults follow no single "
-                    "mechanism: %s." % "; ".join(said)))
-
-    healthy = by_mode.get("none")
-    paying = [a for a in HEALTH_BASED if healthy and a in healthy["ratio"]]
-    if paying:
-        cost = sorted(healthy["ratio"][a] for a in paying)
-        span = (percent(cost[0]) if percent(cost[0]) == percent(cost[-1])
-                else "%s to %s" % (percent(cost[0]), percent(cost[-1])))
-        sentence = ("the health-based arms pay %s on a healthy run for their "
-                    "extra states" % span)
-        flipped = [c for c in columns if c["actual_low"] and c["actual"]
-                   and c["actual_low"] != c["actual"]
-                   and c["actual"] == c["predicted"]]
-        if flipped:
-            lows = sorted({c["low"] for c in flipped})
-            sentence += (", enough to lose small faults: at the lowest rung "
-                         "(severity %s), %s beats %s on %s"
-                         % (" and ".join("%g" % s for s in lows),
-                            style.SHORT[flipped[0]["actual_low"]],
-                            style.SHORT[flipped[0]["actual"]],
-                            join([NAME[c["mode"]] for c in flipped])))
-        out.append(("Health's price", sentence + "."))
+        out.append(("No call made", no_call(neither)))
+    price = health_price(columns)
+    if price:
+        out.append(("Health's price", price))
     return out
+
+
+def effects(pairs, noun="the error"):
+    """[(name, ratio)] -> ['health cut the error by 11%', 'adaptive R by 41%'].
+    The verb is spelt out only where it changes; join() makes the sentence."""
+    out, last = [], None
+    for name, ratio in pairs:
+        change = percent(ratio)
+        verb = ("left" if change == "0%" else
+                "cut" if ratio < 1 else "raised")
+        if verb == "left":
+            out.append("%s left %s unchanged" % (name, noun))
+        elif verb == last:
+            out.append("%s by %s" % (name, change[1:]))
+        else:
+            out.append("%s %s %s by %s" % (name, verb, noun, change[1:]))
+        last = verb
+    return [s.strip() for s in out]
+
+
+def missed(c):
+    """A miss: the adjudicated pair first, then the arms carrying both
+    mechanisms, then whether the top rung flatters the best of them."""
+    r, name = c["ratio"], NAME[c["mode"]]
+    pair = [c["predicted"], c["actual"]]
+    text = ("On %s, %s, so %s won."
+            % (name, join(effects([(style.SHORT[a], r[a]) for a in pair])),
+               style.SHORT[c["actual"]]))
+    both = sorted((a for a in ("layered", "combined") if a in r), key=r.get)
+    if not both:
+        return text
+    lead = both[0]
+    others = [e for a, e in c["err"].items() if a != lead]
+    far = lead in c["best"] and all(c["err"][lead] < FAR * e for e in others)
+    said = effects([(style.SHORT[a], r[a]) for a in both], noun="it")
+    if far:
+        said[0] += ", the column's lowest by far" + ("," if len(said) > 1
+                                                     else "")
+    text += " Of the %s with both mechanisms, %s." % (
+        "arm" if len(both) == 1 else "%s arms" % NUMBER.get(len(both),
+                                                            len(both)),
+        join(said))
+    # A ladder that is not monotone makes the top rung a lucky draw or an
+    # unlucky one; say so, with the rung below for comparison.
+    steps = [rung[lead] for rung in c["ladder"] if lead in rung]
+    if len(steps) > 1 and any(b < a for a, b in zip(steps, steps[1:])):
+        below = c["ladder"][-2]
+        text += (" %s's own error is not monotone up the ladder (%s m/s):"
+                 " at severity %g it %s, not %s."
+                 % (style.SHORT[lead].capitalize(),
+                    ", ".join("%#.2g" % s for s in steps), c["rungs"][-2],
+                    effects([("", below[lead] / below[ANALYTIC])])[0],
+                    percent(r[lead])[1:]))
+    return text
+
+
+NUMBER = {2: "two", 3: "three", 4: "four"}
+
+
+def no_call(neither):
+    said = []
+    for c in neither:
+        r = c["ratio"]
+        if c["best"] == [ANALYTIC]:
+            near = min((a for a in r if a != ANALYTIC), key=r.get)
+            said.append("nothing beats analytic on %s (closest: %s, %s)"
+                        % (NAME[c["mode"]], style.SHORT[near], percent(r[near])))
+        else:
+            said.append("%s is best on %s (%s)" % (
+                join([style.SHORT[a] for a in c["best"]]), NAME[c["mode"]],
+                join([percent(r[a]) for a in c["best"]])))
+    if len(neither) == 1:
+        return said[0][0].upper() + said[0][1:] + "."
+    winners = {tuple(c["best"]) for c in neither}
+    everyone = "both" if len(neither) == 2 else "all %d" % len(neither)
+    opener = ("No one arm is best on %s" % everyone if len(winners) > 1
+              else "One arm is best on %s" % everyone)
+    return "%s: %s." % (opener, "; ".join(said))
+
+
+def health_price(columns):
+    """The healthy-run cost of the health states, then the lower rungs, where
+    the verdict can change."""
+    healthy = next((c for c in columns if c["mode"] == "none"), None)
+    paying = [a for a in HEALTH_BASED if healthy and a in healthy["ratio"]]
+    if not paying:
+        return None
+    cost = sorted(healthy["ratio"][a] for a in paying)
+    span = (percent(cost[0]) if percent(cost[0]) == percent(cost[-1])
+            else "%s to %s" % (percent(cost[0]), percent(cost[-1])))
+    text = ("The health-based arms pay %s on a healthy run for their extra "
+            "states." % span)
+
+    judged = tested(columns)
+    if not judged:
+        return text
+    depth = min(len(c["calls"]) for c in judged)
+    top_hits = sum(c["actual"] == c["predicted"] for c in judged)
+    for i in range(depth - 2, -1, -1):          # from the rung below the top
+        sevs = sorted({c["rungs"][i] for c in judged})
+        at = "severity %s" % "/".join("%g" % s for s in sevs)
+        hits = sum(c["calls"][i] == c["predicted"] for c in judged)
+        flips = [c for c in judged if c["calls"][i] != c["actual"]]
+        if not flips:
+            text += (" At %s the calls come out as at the top, %d of %d."
+                     % (at, hits, len(judged)))
+            continue
+        clauses = []
+        for winner in dict.fromkeys(c["calls"][i] for c in flips):
+            won = [c for c in flips if c["calls"][i] == winner]
+            loser = HEALTH if winner == ADAPTIVE else ADAPTIVE
+            margins = [c["ladder"][i][loser] / c["ladder"][i][winner] - 1
+                       for c in won]
+            modes = join([NAME[c["mode"]] for c in won])
+            if max(margins) < EDGE:
+                clause = "%s edges %s on %s by %s" % (
+                    style.SHORT[winner], style.SHORT[loser], modes,
+                    join(["%.1f%%" % (100 * m) for m in margins]))
+            else:
+                clause = "%s beats %s on %s" % (
+                    style.SHORT[winner], style.SHORT[loser], modes)
+            # Where adaptive R wins, is its error with the fault still under
+            # health's with none? Then the healthy-run price alone decided it.
+            if (winner == ADAPTIVE and HEALTH in healthy["err"]
+                    and all(c["ladder"][i][ADAPTIVE] < healthy["err"][HEALTH]
+                            for c in won)):
+                clause += (", its error with the fault still below health's "
+                           "with none")
+            clauses.append(clause)
+        text += " At %s the calls come out %d of %d%s: %s." % (
+            at, hits, len(judged),
+            ", but not the same ones" if hits == top_hits else "",
+            "; ".join(clauses))
+    return text
+
+
+def ladder_words(columns):
+    """What the top rung of each ladder means, found by running
+    robot/faults.py's own fault functions on a probe signal."""
+    spec = importlib.util.spec_from_file_location(
+        "faults", style.ROOT / "robot" / "faults.py")
+    faults = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(faults)
+    spread = faults.REFERENCE[CHANNEL]
+    top = {c["mode"]: c["severity"] for c in columns}
+    n = 101
+    zeros, ones, ramp = np.zeros(n), np.ones(n), np.arange(float(n))
+    bits = []
+    # bias adds severity x spread; noise draws with that as its sigma.
+    amount = [m for m in ("bias", "noise_inflation") if m in top]
+    if amount:
+        shift = faults.bias(zeros, top[amount[0]], spread, None, None)[0]
+        same = len({top[m] for m in amount}) == 1
+        bits.append("%s at %g× the encoder's healthy spread (%.2f "
+                    "rad/s)" % (join([NAME[m] for m in amount]) if same
+                                else NAME[amount[0]], shift / spread, spread))
+    if "drift" in top:
+        grown = faults.drift(zeros, top["drift"], 1.0, None, None)
+        bits.append("drift growing from %g to %g× by the end of the run"
+                    % (grown[0], grown[-1]))
+    if "scale_error" in top:
+        gain = faults.scale_error(ones, top["scale_error"], spread,
+                                  None, None)[0]
+        bits.append("scale error reading %.0f%% %s, so its error grows with "
+                    "speed"
+                    % (100 * abs(gain - 1), "high" if gain > 1 else "low"))
+    if "stuck" in top:
+        held = faults.stuck(ramp, top["stuck"], spread, None, None)
+        bits.append("stuck frozen for the last %.0f%% of the run"
+                    % (100 * np.mean(held != ramp)))
+    if "dropout" in top:
+        bits.append("dropout losing each reading with probability %g"
+                    % top["dropout"])
+    return ("Top rungs: " + "; ".join(bits) + ".") if bits else ""
 
 
 # ---------------------------------------------------------------- helpers
@@ -207,6 +353,15 @@ def percent(ratio):
     if round(change) == 0:
         return "0%"
     return ("−" if change < 0 else "+") + "%.0f%%" % abs(change)
+
+
+def outline(theme, stop):
+    """Cell outline: none, except a hairline on the neutral stop, which on
+    the light surface is too close to the page (about 1.07:1) to read as a
+    cell by its fill alone."""
+    if stop == NEUTRAL:
+        return dict(edgecolor=theme.grid, linewidth=style.px(1))
+    return dict(edgecolor="none")
 
 
 def box(ax, x, y, w, h, radius, **kw):
@@ -305,31 +460,26 @@ def draw(theme):
     wrapped = [(lead, wrap(body[0].upper() + body[1:], right - grid_x,
                            note_size)) for lead, body in notes(columns)]
 
-    amount = max(c["severity"] for c in columns
-                 if c["moment"] in ("first", "second"))
-    fraction = max((c["severity"] for c in columns
-                    if c["moment"] == "neither"), default=None)
-    ladder = "Ladders top out at %g× the channel's healthy spread" % amount
-    if fraction is not None:
-        ladder += (", or for stuck and dropout at %.0f%% of the run frozen or "
-                   "lost" % (100 * fraction))
-    foot = wrap("Ground-robot simulation, fault on the left encoder, each "
-                "cell averaged over the seeds of experiments/moments.py. "
-                "%s. Held-out modes never appeared in training. Source: "
-                "results/moments.csv." % ladder, right - left, 7.5)
+    foot = wrap("Ground-robot simulation, fault on the left encoder. %s "
+                "Cells are seed means from experiments/moments.py with no "
+                "per-seed spread kept, so arms a few percent apart are not "
+                "resolved. Held-out modes never appeared in "
+                "training. Source: results/moments.csv."
+                % ladder_words(columns), right - left, 7.5)
 
     # Vertical plan in inches from the top, so the height follows the rows.
     groups_y = 1.86
     names_y = groups_y + 0.50
     tags_y = names_y + 0.22
     grid_y = tags_y + 0.24
-    ratio_y = grid_y + ref_h + 0.10
+    rule_y = grid_y + ref_h + 0.075   # midway between the two rows' rings
+    ratio_y = grid_y + ref_h + 0.15
     grid_end = ratio_y + len(ratio_arms) * row_pitch - (row_pitch - cell_h)
     pred_y = grid_end + 0.34
     out_y = pred_y + 0.42
     notes_y = out_y + 0.52
     notes_h = sum(len(lines) * note_lead + 0.10 for _, lines in wrapped)
-    H = notes_y + notes_h + 0.08 + 0.155 * len(foot) + 0.12
+    H = notes_y + notes_h + 0.155 * len(foot) + 0.12
 
     fig = style.figure(H, theme)
     ax = fig.add_axes([0, 0, 1, 1])        # an inch canvas, y downward
@@ -352,7 +502,7 @@ def draw(theme):
     x = left + width_of(fig, t) + 0.08
     for i, colour in enumerate(theme.diverging):
         box(ax, x + i * sw + 0.012, ky - sh / 2, sw - 0.024, sh, 0.025,
-            facecolor=colour, edgecolor="none")
+            facecolor=colour, **outline(theme, i))
     for i, edge in enumerate(EDGES):
         ax.text(x + (i + 1) * sw, ky + sh / 2 + 0.05, percent(edge),
                 ha="center", va="top", fontsize=7.5, color=theme.muted)
@@ -435,7 +585,7 @@ def draw(theme):
                 fontweight="semibold" if best else "normal")
         if best:
             ring(x, grid_y, ref_h)
-    ax.plot([grid_x, right], [grid_y + ref_h + 0.05] * 2,
+    ax.plot([grid_x, right], [rule_y] * 2,
             color=theme.baseline, linewidth=style.px(1), solid_capstyle="butt")
 
     # The ratio rows.
@@ -446,9 +596,10 @@ def draw(theme):
             if arm not in c["ratio"]:
                 continue
             ratio = c["ratio"][arm]
-            fill = theme.diverging[int(np.searchsorted(EDGES, ratio))]
-            box(ax, x, y, cell_w, cell_h, 0.04, facecolor=fill,
-                edgecolor="none", zorder=2)
+            stop = int(np.searchsorted(EDGES, ratio))
+            fill = theme.diverging[stop]
+            box(ax, x, y, cell_w, cell_h, 0.04, facecolor=fill, zorder=2,
+                **outline(theme, stop))
             best = arm in c["best"]
             ax.text(x + cell_w / 2, y + cell_h / 2, percent(ratio),
                     ha="center", va="center", fontsize=9.5,
@@ -505,4 +656,5 @@ if __name__ == "__main__":
     for path, theme in zip(written, style.THEMES):
         shrink(path, [style.arm_color(theme, a) for a in ORDER]
                + list(theme.diverging) + [theme.ink, theme.ink2, theme.muted,
-                                          theme.surface, theme.wash])
+                                          theme.surface, theme.wash,
+                                          theme.grid, theme.baseline])
