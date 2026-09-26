@@ -8,6 +8,17 @@ Intelligence (COHRINT) Lab, Ann and H.J. Smead Department of Aerospace
 Engineering Sciences, University of Colorado Boulder. The composite
 state-and-health formulation below follows his proposal.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/img/trace-dark.png">
+  <img alt="Three rows of time series for a bias fault and a noise fault arriving at 8 seconds. Under bias, the health estimate climbs toward the injected severity while the covariance-matching residual stays at zero. Under noise, the health estimate stays flat while the residual rises to 95 percent of the injected variance." src="figures/img/trace-light.png">
+</picture>
+
+The argument in one figure. A filter that estimates sensor health reads the
+*direction* of its innovations and can learn a shifted reading; covariance
+matching reads their *magnitude* and can absorb a noisier one. Neither sees
+the other's fault, which is derivable before any experiment and is why the
+deployed arm, `layered`, carries both.
+
 ## Formulation
 
 Estimation seeks `p(x | z)` for state `x` given measurements `z`. The
@@ -426,7 +437,8 @@ empirical.
 | `experiments/redundancy.py` | How many broken sensors three can survive, and what a fault arriving mid-run costs |
 | `experiments/sensitivity.py` | One question per tuned constant: does halving or doubling it change any conclusion |
 | `experiments/timing.py` | Cost per filter step with warmup, repeats and a median, and a star on any row too variable to quote |
-| `experiments/figures.py` | The figures, drawn from the csv rather than recomputed, so a figure cannot disagree with its table |
+| `experiments/trace.py` | A fault arriving mid-run, logged step by step: health estimates, the covariance-matching residual and the error, per seed |
+| `figures/` | Every figure, drawn from `results/` rather than recomputed so a figure cannot disagree with its table, in a light and a dark version. `style.py` holds the shared palette, validated for colour-vision deficiency |
 | `experiments/reproducibility.py` | Whether a retrain from the fixed seed reproduces the saved model. It does, bit-exactly |
 | `experiments/scatter.py` | Whether the UKF's claimed measurement scatter matches the empirical one. On the quadcopter it is 8× low, which is why covariance matching over-inflates `R` there |
 | `experiments/frozen.py` | A three-line variance check for a frozen sensor, in front of the analytic model and of `layered` alike, against the fault the taxonomy cannot place |
@@ -476,12 +488,6 @@ gravity and magnetic north read through a rotation matrix. The two simulators
 share the filter, the covariance algebra and the fault taxonomy, and differ in
 whether `h` is a matrix.
 
-![complementarity](results/complementarity.png)
-
-Each mechanism owns one fault family. Health conditioning is below adaptive on
-the left panel and above it on the right; the crossing is the claim, and
-`combined` tracks the lower of the two in both.
-
 ```bash
 python robot/dynamics.py        # property-based verification of the motion model
 python robot/trajectories.py    # trajectory determinism and state-space coverage
@@ -502,7 +508,8 @@ python models/health/train.py     # the health-conditioned model
 
 python experiments/common.py             # which arms are trained and ready
 python experiments/bakeoff.py            # every arm, one seed set, one ladder
-python experiments/figures.py            # the figures, from results/bakeoff.csv
+python experiments/trace.py              # a mid-run fault, step by step
+python figures/make_all.py               # every figure, light and dark, from results/
 python experiments/moments.py            # does moment order predict unseen faults?
 python experiments/sensitivity.py        # which tuned constants actually matter
 python experiments/timing.py             # cost per filter step, properly measured
@@ -724,6 +731,11 @@ is not a ranking. Left encoder, severity 3.0:
 | health-conditioned *(direction)* | **0.0162** | 0.0180 |
 | combined *(both)* | **0.0162** | 0.0115 |
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/img/crossing-dark.png">
+  <img alt="Two-by-two small multiples of speed error and NIS against fault severity for bias and noise faults, showing health-conditioned beating adaptive R on bias and adaptive R beating health-conditioned on noise, with layered near the best on both." src="figures/img/crossing-light.png">
+</picture>
+
 Each single-mechanism arm wins its own column and loses the other's, and
 health on a variance fault is *worse than doing nothing*. That is not a
 training shortfall. A noise fault leaves the expected reading exactly where it
@@ -760,6 +772,11 @@ the fault and the adaptive layer correctly does nothing.
 modes. Three of four testable modes went as predicted. `drift` is the result
 worth having — never in training, and health won it exactly as first-moment
 classification requires.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/img/moments-dark.png">
+  <img alt="Scoreboard heatmap of each arm's speed error relative to the analytic model across six fault modes grouped by moment order, marking which arm wins each mode and whether the moment-order prediction held." src="figures/img/moments-light.png">
+</picture>
 
 `scale_error` did not, and the reason turned out to be instructive rather than
 fatal: see below.
@@ -904,6 +921,11 @@ arm on it, worse than doing nothing. On calibration it does:
 | health-conditioned | **10.70** | 32.06 |
 | layered | 8.16 | 10.01 |
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/img/quad-dark.png">
+  <img alt="Quadcopter attitude error and NIS for four arms under accelerometer and magnetometer faults, showing the NIS crossing between adaptive R and health-conditioned holding while the accuracy ordering does not." src="figures/img/quad-light.png">
+</picture>
+
 Health beats adaptive on bias; adaptive beats health on noise, where health's
 32 is exactly the overconfidence `∂h/∂m = 0` predicts — it never widens `R`
 for a fault it cannot see. Layered holds within 14% of target on every
@@ -947,17 +969,24 @@ sigma points, and attributes the remainder to `R`. That is exact when the
 claimed scatter is right. `experiments/scatter.py` compares the claimed
 scatter to the empirical one on healthy runs of both vehicles, per channel:
 
-| | claimed / empirical |
+| | empirical / claimed |
 |---|---|
 | ground robot, median over 3 channels | 0.48× |
 | quadcopter, median over 9 channels | **8.2×** |
 | quadcopter, `accel_z` | **87×** |
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/img/scatter-dark.png">
+  <img alt="Dot plot on a log scale of empirical over claimed measurement scatter per channel: ground-robot channels sit near half, quadcopter channels sit far above one, with accel_z at about 87 times." src="figures/img/scatter-light.png">
+</picture>
+
 The quadcopter's filter claims an order of magnitude less scatter than its
-innovations show, and worst on the accelerometer channels — the ones roll and
-pitch are observed through. Mehra's subtraction then leaves that missing
-scatter in `R`, inflates it, and the filter trusts exactly the sensors it
-most needs. This is [27]'s result — nonlinear Kalman filters systematically
+innovations show, and the claim is furthest off on the accelerometer
+channels — the ones roll and pitch are observed through. Mehra's subtraction
+then books that missing scatter as sensor noise and inflates `R`. How much
+each channel's `R` grows depends on its own `R` as well, which
+`results/scatter.csv` does not record, so the ranking above is of the
+under-claim and not of the inflation. This is [27]'s result — nonlinear Kalman filters systematically
 underestimate the posterior covariance — appearing as a bias in a classical
 estimator that consumes that covariance, and it is not specific to Mehra:
 any adaptive method that reads `R` off the innovations inherits it on a
@@ -982,6 +1011,11 @@ should settle near the severity:
 | gyro noise | 0.10 |
 | magnetometer noise | 2.65 |
 | *healthy flight, worst entry, 3 of 8 flights* | *2.0 to 4.8* |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/img/health_readout-dark.png">
+  <img alt="Final health-entry values against injected severity for each quadcopter device, far from the diagonal a working readout would follow: accelerometer and gyro entries stay low under faults, magnetometer entries are high even on healthy flights." src="figures/img/health_readout-light.png">
+</picture>
 
 They do not. Accelerometer and gyro faults barely move their entries, the
 magnetometer's entries respond to faults and equally to nothing, and on three
@@ -1015,6 +1049,11 @@ readings beats the learned machinery, and `experiments/frozen.py` answers it:
 | layered | 0.1806 | −18% |
 | layered + detector | 0.0086 | −96% |
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/img/frozen-dark.png">
+  <img alt="Speed error with and without a variance-based frozen-sensor detector for the analytic and layered arms, on a log scale, with false alarms per run at detector windows of 5 and 25 steps." src="figures/img/frozen-light.png">
+</picture>
+
 The detector recovers 97% of the gap on its own, and `layered` adds nothing
 on top of it. That fault wants three lines of numpy and not a learned model,
 which is the honest recommendation and a better one than a network that
@@ -1037,7 +1076,15 @@ and degraded sensors are exactly where that is least safe.
 
 A fault arriving mid-run still costs `combined` about half again over the same
 fault present from the start, after retraining on transitions brought it down
-from 94%.
+from 94%. The figure at the top shows the mechanism behind that for `layered`:
+`experiments/trace.py` lets a severity-3 bias arrive at 8 s in 40 s runs, and
+the health estimate is still climbing at the end, a median of 1.91 against 3.
+Over the last 12 s `layered` beats the analytic model on 6 of 8 seeds, but on
+seed 2004 the estimate stalls near 1 and `layered` ends worse than doing
+nothing, 0.060 m/s against 0.027, which leaves the pooled error level. The
+noise fault shows none of this: on every seed the residual settles between
+84% and 109% of the injected variance, median 95%, and passes 85% of it
+between 6 and 11 s after onset.
 
 On the quadcopter the health entries improve the estimate without reading as
 severities. Whether that is the map's residual error being absorbed, as

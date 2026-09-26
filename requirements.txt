@@ -23,8 +23,8 @@ numpy>=2.0
 pandas>=2.0
 torch>=2.0
 
-# Figures only. experiments/figures.py needs it; nothing else does, and the
-# filter never imports it.
+# Figures only. figures/ needs it, and the Pillow it installs, which shrinks
+# the PNGs; nothing else does, and the filter never imports it.
 matplotlib>=3.8
 
 # Vehicle side only, and optional: deploy/mavlink_source.py imports it lazily
