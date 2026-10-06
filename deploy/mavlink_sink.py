@@ -54,13 +54,53 @@ HEALTH_ALERT = 1.0              # default level for a health alert; None disable
 NIS_ALERT_FACTOR = 3.0          # NIS above this many times its target, sustained
 NIS_ALERT_STEPS = 50            # for this many consecutive updates, raises one
 
+# The quadcopter's three devices by channel, in SCALED_IMU order.
+QUAD_DEVICES = {"accel": [0, 1, 2], "gyro": [3, 4, 5], "mag": [6, 7, 8]}
+
+
+class Novelty:
+    """The epistemic term's novelty ratio, smoothed per device.
+
+    The ratio is 1 where the model's inputs look like its training data and
+    grows where they do not. Per step it is spiky -- healthy simulated flights
+    touch 30 for a step or two while the health estimates settle -- so what is
+    reported and alarmed on is a geometric running mean over about a second:
+    an exponential average of the log, which a lone spike cannot move far.
+    The highest channel of each device is taken, since one unfamiliar channel
+    is enough.
+
+    Numpy only, and shared with deploy/calibrate_novelty.py, so the threshold
+    is set on exactly the quantity the vehicle computes.
+    """
+
+    def __init__(self, devices, time_constant=1.0, dt=0.02):
+        self.devices = dict(devices)
+        self.alpha = dt / time_constant
+        self.level = {name: 0.0 for name in self.devices}     # log units
+        self.steps = 0
+
+    def update(self, doubt):
+        """Take one step's per-channel ratio; return the smoothed per device."""
+        if doubt is not None:
+            doubt = np.maximum(np.asarray(doubt, dtype=float), 1e-12)
+            for name, columns in self.devices.items():
+                target = float(np.log(doubt[columns].max()))
+                self.level[name] += self.alpha * (target - self.level[name])
+            self.steps += 1
+        return self.current()
+
+    def current(self):
+        return {name: float(np.exp(v)) for name, v in self.level.items()}
+
 
 class Sink:
     """Send estimates to a MAVLink endpoint as named floats and alerts."""
 
     def __init__(self, connection, source_system=1, period=DEFAULT_PERIOD,
                  nis_target=9.0, health_alert=HEALTH_ALERT,
-                 health_names=HEALTH_NAMES, clock=time.time):
+                 health_names=HEALTH_NAMES, devices=None, novelty_alert=None,
+                 novelty_time_constant=1.0, arm_after=100, dt=0.02,
+                 clock=time.time):
         from pymavlink import mavutil        # imported here: not a runtime dep
 
         self.link = mavutil.mavlink_connection(
@@ -73,6 +113,16 @@ class Sink:
         self.health_alert = health_alert     # None: report levels, never alarm
         self.health_names = list(health_names)
         self.clock = clock
+
+        # Novelty per device, if the estimator reports it. ``novelty_alert``
+        # maps a device to the smoothed level that raises an alert, calibrated
+        # on healthy flights by deploy/calibrate_novelty.py; a device missing
+        # from it is reported and never alarmed. Nothing alarms in the first
+        # ``arm_after`` steps, while the filter settles.
+        self.novelty = (Novelty(devices, time_constant=novelty_time_constant,
+                                dt=dt) if devices else None)
+        self.novelty_alert = dict(novelty_alert or {})
+        self.arm_after = arm_after
 
         self.last_sent = -np.inf
         self.alerted = set()
@@ -91,6 +141,8 @@ class Sink:
         sent = 0
         now = self.clock()
         stamp = self._boot_ms(record["time"])
+        novelty = (self.novelty.update(record.get("doubt"))
+                   if self.novelty is not None else {})
 
         if now - self.last_sent >= self.period:
             mean = record["mean"]
@@ -105,7 +157,28 @@ class Sink:
             self.mav.named_value_float_send(stamp, b"step_ms",
                                             float(record["ms"]))
             sent += 1
+            for device, level in novelty.items():
+                name = ("nov_%s" % device)[:10]
+                self.mav.named_value_float_send(stamp, name.encode("ascii"),
+                                                level)
+                sent += 1
             self.last_sent = now
+
+        # Novelty alerts: the model is being asked about inputs unlike its
+        # training data, sustained over about a second. Once per crossing.
+        if self.novelty is not None and self.novelty.steps > self.arm_after:
+            for device, level in novelty.items():
+                limit = self.novelty_alert.get(device)
+                if limit is None:
+                    continue
+                key = "nov_" + device
+                if level > limit and key not in self.alerted:
+                    self._alert("model outside training: %s x%.0f"
+                                % (device, level))
+                    self.alerted.add(key)
+                    sent += 1
+                elif level <= 0.5 * limit:
+                    self.alerted.discard(key)
 
         # Alerts: once per crossing, not once per step. Whether a health
         # entry's level means anything is the vehicle's business -- see
@@ -187,6 +260,23 @@ if __name__ == "__main__":
         records.append(r)
 
     total = sum(sink.push(r, health_states) for r in records)
+
+    # Novelty, on the same sink (two udpout links to one port collide on
+    # Windows): reporting per device switched on, named values sent once so
+    # the stream stays small. Ordinary inputs for two seconds, then the
+    # accelerometer's channels at 50 times their training level; the smoothed
+    # level has to climb past the alert level of 5 and fire exactly once.
+    sink.novelty = Novelty(QUAD_DEVICES)
+    sink.novelty_alert = {"accel": 5.0}
+    sink.arm_after = 50
+    sink.period, sink.last_sent = 1e9, -np.inf
+    for k in range(250):
+        doubt = np.ones(9)
+        if k >= 100:
+            doubt[0:3] = 50.0
+        total += sink.push({"time": 3.0 + 0.02 * k, "mean": base.copy(),
+                            "nis": 8.5, "ms": 1.7, "doubt": doubt},
+                           health_states)
     time.sleep(0.5)
     thread.join(timeout=6.0)
 
@@ -204,9 +294,12 @@ if __name__ == "__main__":
     for t in texts:
         print("    %r" % t)
 
+    novelty_alerts = [t for t in texts if t.startswith("model outside")]
     ok = (len(got) == total
-          and set(HEALTH_NAMES + ["nis", "step_ms"]) <= set(names)
-          and len(texts) == 2)
-    print("\n  every message arrived, all names present, both alerts fired: %s"
-          % ("yes" if ok else "NO"))
+          and set(HEALTH_NAMES + ["nis", "step_ms", "nov_accel", "nov_gyro",
+                                  "nov_mag"]) <= set(names)
+          and len(texts) == 3 and len(novelty_alerts) == 1
+          and "accel" in novelty_alerts[0])
+    print("\n  every message arrived, all names present, health, NIS and")
+    print("  novelty alerts each fired once: %s" % ("yes" if ok else "NO"))
     sys.exit(0 if ok else 1)

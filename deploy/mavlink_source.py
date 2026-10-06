@@ -104,8 +104,11 @@ def reading_from_scaled_imu(message):
     return reading
 
 
+ATTITUDE_WAIT = 2.0        # seconds to wait for the flight controller's attitude
+
+
 def mavlink_source(connection, dt_nominal=0.02, message="SCALED_IMU",
-                   timeout_factor=2.0):
+                   timeout_factor=2.0, initial=None):
     """Yield ``(seconds, reading)`` from a MAVLink connection, or None on a gap.
 
     ``connection`` is anything pymavlink's ``mavlink_connection`` accepts: a
@@ -115,11 +118,33 @@ def mavlink_source(connection, dt_nominal=0.02, message="SCALED_IMU",
     Timestamps are the flight controller's ``time_boot_ms``, in seconds, so
     the estimator's measured interval reflects when the reading was taken
     and not when it was received.
+
+    ``initial``, if given, is a dict filled before the first reading with the
+    flight controller's own attitude and rates -- roll, pitch, yaw, p, q, r --
+    from one ATTITUDE message, for the estimator to start from. It is left
+    empty if none arrives in ATTITUDE_WAIT seconds. Starting the filter from
+    zeros is not a harmless default: quad_sim/health_readout.py found that a
+    filter started half a turn wrong in heading spends the rest of the flight
+    with its health estimates soaking up the mismatch.
     """
     from pymavlink import mavutil          # imported here: not a runtime dep
 
     link = mavutil.mavlink_connection(connection)
     link.wait_heartbeat()
+
+    if initial is not None:
+        # ArduPilot streams ATTITUDE on most links already; ask for it anyway
+        # at 10 Hz rather than rely on the stream-rate parameters.
+        link.mav.command_long_send(
+            link.target_system, link.target_component,
+            mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL, 0,
+            mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE, 100000, 0, 0, 0, 0, 0)
+        att = link.recv_match(type="ATTITUDE", blocking=True,
+                              timeout=ATTITUDE_WAIT)
+        if att is not None:
+            initial.update(roll=att.roll, pitch=att.pitch, yaw=att.yaw,
+                           p=att.rollspeed, q=att.pitchspeed,
+                           r=att.yawspeed)
 
     # Ask for the message at the filter's rate. ArduPilot's default stream
     # rate for the raw-sensor group is a few hertz, and a fifty-hertz filter

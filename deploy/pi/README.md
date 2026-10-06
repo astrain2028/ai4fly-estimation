@@ -10,33 +10,47 @@ confirmed on this hardware. Confirm each step before enabling the service.
 
 One Python process, `deploy/pi_main.py`. It reads `SCALED_IMU` from the
 flight controller over MAVLink, steps the estimator in `deploy/runtime.py`,
-sends six health estimates and the filter's NIS back as `NAMED_VALUE_FLOAT`
-once a second, raises a `STATUSTEXT` alert when a health estimate or NIS
-crosses a threshold, and writes one log row per step to `deploy/logs/`.
+and once a second sends back as `NAMED_VALUE_FLOAT` the six health
+estimates, the filter's NIS, and the model's novelty per device -- how
+unlike its training data the model's inputs are, 1 when they are ordinary.
+It raises a `STATUSTEXT` alert when NIS or a device's novelty crosses its
+level, and writes one log row per step to `deploy/logs/`.
 
 The estimator is advisory. Nothing it sends feeds the flight controller's
 EKF; the vehicle flies on its own estimate whether this process is running
 or not. That is the configuration to fly first.
 
-Measured on a laptop: about 1.7 ms per step for the quadcopter against a
-20 ms budget at 50 Hz, and 28 MB resident with the weights exported to
-numpy. The Pi 5 will be slower; measure it there with `deploy/runtime.py`
-before trusting the margin.
+It starts its filter from the flight controller's own attitude, read from
+one `ATTITUDE` message before the first update, and prints the roll, pitch
+and yaw it started from. If none arrives within two seconds it warns and
+starts level at heading 0 -- and in simulation a filter started half a turn
+wrong in heading carries the error in its health estimates for the whole
+flight (`quad_sim/health_readout.py`), so treat that warning as a reason to
+restart, not to fly.
+
+Measured on a laptop: about 2 ms per step for the quadcopter with the
+epistemic term (1.5 ms without) against a 20 ms budget at 50 Hz, and 28 MB
+resident with the weights exported to numpy. The Pi 5 will be slower;
+measure it there with `deploy/runtime.py` before trusting the margin.
 
 ## Software on the Pi
 
     sudo apt install python3-numpy python3-pandas
-    pip3 install pymavlink
+    pip3 install pymavlink pyserial
+    sudo usermod -aG dialout pi          # the serial port, for User=pi
     git clone <this repository> ~/ai4fly-estimation
 
-The trained weights are not in the repository. Export them on a machine
-with torch and copy `deploy/weights/quad.npz` (85 KB) to the same path on
-the Pi:
+The trained weights are not in the repository. On a machine with torch, fit
+the model's last-layer posterior -- the epistemic term needs it -- then
+export, and copy `deploy/weights/quad.npz` (about 1.2 MB, most of it the
+posterior) to the same path on the Pi:
 
-    python deploy/export.py            # on the training machine
+    python quad_sim/laplace.py         # on the training machine
+    python deploy/export.py
     scp deploy/weights/quad.npz pi@<host>:ai4fly-estimation/deploy/weights/
 
-Nothing on the Pi needs torch.
+Nothing on the Pi needs torch. If the posterior is missing from the export,
+the process says so on startup and runs without the epistemic term.
 
 ## Wiring
 
@@ -71,9 +85,9 @@ nearly every row; a link delivering at 2 Hz rather than 50 shows as
 `updated` being mostly 0, and means the rate request was not honoured.
 
 In the ground station, the named values `hb_accel`, `hb_gyro`, `hb_mag`,
-`hn_accel`, `hn_gyro`, `hn_mag`, `nis` and `step_ms` should appear in the
-Quick or Status tab within a few seconds, and in the dataflash log
-afterwards under `NVF`.
+`hn_accel`, `hn_gyro`, `hn_mag`, `nis`, `step_ms`, `nov_accel`, `nov_gyro`
+and `nov_mag` should appear in the Quick or Status tab within a few seconds,
+and in the dataflash log afterwards under `NVF`.
 
 ## Running at boot
 
@@ -97,3 +111,13 @@ simulation they do not read as severities (`quad_sim/health_readout.py`):
 entries above 2 appear on healthy flights and a severity-3 accelerometer
 fault moves its entry to under 1. Log them, do not act on them, and expect
 the first flights to add a sim-to-hardware gap on top of that.
+
+The novelty values are the one channel built to measure that gap. Their
+alert levels come from healthy simulated flights (`deploy/calibrate_novelty.py`,
+written to `results/novelty_threshold.csv`), so on the first real flights
+they answer one question: does the real vehicle look like the simulated one
+to the model? A novelty alert on a healthy first flight is not a fault. It is
+the sim-to-real gap, measured per device, and it says which device the
+model was trained on least faithfully. Fly the first flights gently, inside
+the envelope the model was trained on, and recalibrate the levels from those
+logs before treating an alert as a warning.

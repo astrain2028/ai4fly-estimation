@@ -176,6 +176,10 @@ class Estimator:
             nis = float(innovation @ np.linalg.solve(S, innovation))
         elapsed = time.perf_counter() - started
 
+        # The epistemic term's novelty ratio per channel, if the measurement
+        # model carries one: 1 on inputs like the training data.
+        doubt = getattr(self.measure, "doubt", None)
+
         return {
             "time": float(timestamp),
             "dt": dt,
@@ -187,6 +191,7 @@ class Estimator:
             "var": np.diag(self.cov).copy(),
             "innovation": innovation,
             "nis": nis,
+            "doubt": None if doubt is None else np.array(doubt, dtype=float),
         }
 
 
@@ -214,20 +219,24 @@ def log_header(state_names, channel_names):
             + list(state_names)
             + ["var_%s" % s for s in state_names]
             + ["innov_%s" % c for c in channel_names]
-            + ["nis"])
+            + ["nis"]
+            + ["doubt_%s" % c for c in channel_names])
 
 
 def log_row(record, channel_names):
     """One estimator record as the strings that go in its log row."""
     innov = (record["innovation"] if record["innovation"] is not None
              else [""] * len(channel_names))
+    doubt = record.get("doubt")
+    doubt = [""] * len(channel_names) if doubt is None else doubt
     return ([record["time"], "%.6f" % record["dt"], int(record["updated"]),
              int(record["irregular"]), record["repaired"],
              "%.4f" % record["ms"]]
             + ["%.6g" % v for v in record["mean"]]
             + ["%.6g" % v for v in record["var"]]
             + ["%.6g" % v if v != "" else "" for v in innov]
-            + ["%.4f" % record["nis"] if record["nis"] is not None else ""])
+            + ["%.4f" % record["nis"] if record["nis"] is not None else ""]
+            + ["%.4g" % v if v != "" else "" for v in doubt])
 
 
 def replay(readings, dt, seed=0, drop_fraction=0.0, jitter_fraction=0.0):
@@ -248,14 +257,33 @@ def replay(readings, dt, seed=0, drop_fraction=0.0, jitter_fraction=0.0):
         yield times[k], (None if dropped[k] else readings[k])
 
 
-def ground_robot(weights=None):
+def _epistemic(export, weights, wanted, take, n_vehicle, wrap=()):
+    """layered's epistemic term from the exported weights, if wanted.
+
+    Asking for it and not getting it is said out loud: a vehicle that
+    silently flew without the term would log a doubt of nothing and look
+    certain.
+    """
+    if not wanted:
+        return None
+    term = export.load_epistemic(weights, take=take, n_vehicle=n_vehicle,
+                                 wrap=wrap)
+    if term is None:
+        print("warning: %s carries no Laplace posterior; flying without the "
+              "epistemic term. Fit it and re-export (deploy/export.py)."
+              % Path(weights).name, file=sys.stderr, flush=True)
+    return term
+
+
+def ground_robot(weights=None, with_epistemic=True):
     """Everything the estimator needs for the ground robot, numpy only.
 
     Returns (move, measure, Q, R, start_mean, start_cov, dt, health_states,
     state_names, channel_names). The learned measurement model is the health
     arm's weights, exported by deploy/export.py; the analytic fallback is used
     if they are absent, so the loop can be exercised before anything is
-    trained.
+    trained. ``with_epistemic`` adds layered's second term when the export
+    carries a Laplace posterior.
     """
     export = load_module(HERE / "export.py", "runtime_export")
     dynamics = load_module(ROOT / "robot" / "dynamics.py", "runtime_dynamics")
@@ -270,10 +298,13 @@ def ground_robot(weights=None):
     if Path(weights).exists():
         take = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12]
         measure = export.load(weights, take=take, n_vehicle=5)
+        epistemic = _epistemic(export, weights, with_epistemic, take=take,
+                               n_vehicle=5)
         layered = load_module(ROOT / "models" / "layered" / "measurement.py",
                               "runtime_layered")
-        measure = layered.Layered(measure, health_states=health_states,
-                                  n_channels=3)
+        measure = layered.Layered(measure, epistemic=epistemic,
+                                  health_states=health_states, n_channels=3,
+                                  record=False)
     else:
         measure = ukf.expected_readings
         n_states, health_states = n_vehicle, []
@@ -295,10 +326,10 @@ def ground_robot(weights=None):
             health_states, names, channels)
 
 
-def quadcopter(weights=None):
+def quadcopter(weights=None, with_epistemic=True):
     """Everything the estimator needs for the quadcopter, numpy only.
 
-    Same return shape as ground_robot. This is the vehicle
+    Same return shape and arguments as ground_robot. This is the vehicle
     deploy/mavlink_source.py feeds: nine channels from SCALED_IMU in the order
     quad_sim trained on. The motion and analytic measurement models are built
     from quad_sim/dynamics.py directly rather than through
@@ -306,6 +337,15 @@ def quadcopter(weights=None):
     with it torch, and the vehicle-side process is meant to carry neither.
     """
     export = load_module(HERE / "export.py", "runtime_export_quad")
+    # quad_sim's sensors.py and trajectories.py import their neighbours by
+    # bare name ("from dynamics import ..."), and this module has already
+    # loaded robot/ukf.py, which cached the ground robot's dynamics under that
+    # same name. Python checks the cache before the path, so without lifting
+    # those names out for the duration the quadcopter's sensors are handed
+    # the robot's dynamics and fail to import. This crashed the vehicle
+    # process at startup; the self-test hid it by importing quad_sim first.
+    names = ("dynamics", "sensors", "trajectories")
+    shadowed = {m: sys.modules.pop(m) for m in names if m in sys.modules}
     saved = list(sys.path)
     sys.path.insert(0, str(ROOT / "quad_sim"))
     try:
@@ -317,6 +357,9 @@ def quadcopter(weights=None):
                                    "runtime_quad_trajectories")
     finally:
         sys.path[:] = saved
+        for m in names:
+            sys.modules.pop(m, None)
+        sys.modules.update(shadowed)
 
     n_vehicle, n_states = 6, 12
     health_states = list(range(6, 12))
@@ -337,12 +380,19 @@ def quadcopter(weights=None):
         return np.hstack([force, states[:, 3:6], field])
 
     if Path(weights).exists():
+        # Yaw, input 2, is wrapped before the network sees it: a real flight
+        # turns past a half circle, and the model was trained on yaw within
+        # about one (models/layered/epistemic.py wrap_angle).
         measure = export.load(weights, take=list(range(n_states)),
-                              n_vehicle=n_vehicle)
+                              n_vehicle=n_vehicle, wrap=[2])
+        epistemic = _epistemic(export, weights, with_epistemic,
+                               take=list(range(n_states)), n_vehicle=n_vehicle,
+                               wrap=[2])
         layered = load_module(ROOT / "models" / "layered" / "measurement.py",
                               "runtime_layered_quad")
-        measure = layered.Layered(measure, health_states=health_states,
-                                  n_channels=9)
+        measure = layered.Layered(measure, epistemic=epistemic,
+                                  health_states=health_states, n_channels=9,
+                                  record=False)
     else:
         measure = analytic
         n_states, health_states = n_vehicle, []

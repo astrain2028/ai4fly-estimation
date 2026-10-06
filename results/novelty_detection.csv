@@ -1,0 +1,89 @@
+vehicle,condition,kind,flights,alarmed,first_alarm_s,time_constant,chosen
+robot,healthy,false,8,0,,1,False
+robot,left_encoder bias 3.0,trained,8,1,2.32,1,False
+robot,left_encoder noise_inflation 3.0,trained,8,0,,1,False
+robot,left_encoder drift 3.0,untrained,8,0,,1,False
+robot,left_encoder scale_error 3.0,untrained,8,1,2,1,False
+robot,left_encoder stuck 0.5,untrained,8,4,15.99,1,False
+robot,left_encoder dropout 0.5,untrained,8,0,,1,False
+robot,healthy,false,8,0,,2,False
+robot,left_encoder bias 3.0,trained,8,1,2.4,2,False
+robot,left_encoder noise_inflation 3.0,trained,8,0,,2,False
+robot,left_encoder drift 3.0,untrained,8,0,,2,False
+robot,left_encoder scale_error 3.0,untrained,8,2,11,2,False
+robot,left_encoder stuck 0.5,untrained,8,7,14.74,2,False
+robot,left_encoder dropout 0.5,untrained,8,0,,2,False
+robot,healthy,false,8,0,,5,True
+robot,left_encoder bias 3.0,trained,8,4,13.66,5,True
+robot,left_encoder noise_inflation 3.0,trained,8,0,,5,True
+robot,left_encoder drift 3.0,untrained,8,1,10.06,5,True
+robot,left_encoder scale_error 3.0,untrained,8,8,10.22,5,True
+robot,left_encoder stuck 0.5,untrained,8,8,15.78,5,True
+robot,left_encoder dropout 0.5,untrained,8,0,,5,True
+robot,healthy,false,8,0,,10,False
+robot,left_encoder bias 3.0,trained,8,5,13.82,10,False
+robot,left_encoder noise_inflation 3.0,trained,8,0,,10,False
+robot,left_encoder drift 3.0,untrained,8,0,,10,False
+robot,left_encoder scale_error 3.0,untrained,8,8,10.92,10,False
+robot,left_encoder stuck 0.5,untrained,8,8,17.38,10,False
+robot,left_encoder dropout 0.5,untrained,8,0,,10,False
+quad,healthy,false,8,0,,1,False
+quad,aggressive x1.5,envelope,8,1,2.62,1,False
+quad,aggressive x2,envelope,8,4,3.15,1,False
+quad,accel bias 3.0,trained,8,0,,1,False
+quad,accel noise_inflation 3.0,trained,8,0,,1,False
+quad,accel drift 3.0,untrained,8,0,,1,False
+quad,accel scale_error 3.0,untrained,8,0,,1,False
+quad,accel stuck 0.5,untrained,8,0,,1,False
+quad,accel dropout 0.5,untrained,8,0,,1,False
+quad,mag bias 3.0,trained,8,0,,1,False
+quad,mag noise_inflation 3.0,trained,8,0,,1,False
+quad,mag drift 3.0,untrained,8,0,,1,False
+quad,mag scale_error 3.0,untrained,8,0,,1,False
+quad,mag stuck 0.5,untrained,8,0,,1,False
+quad,mag dropout 0.5,untrained,8,0,,1,False
+quad,healthy,false,8,0,,2,True
+quad,aggressive x1.5,envelope,8,1,3.82,2,True
+quad,aggressive x2,envelope,8,6,3.89,2,True
+quad,accel bias 3.0,trained,8,0,,2,True
+quad,accel noise_inflation 3.0,trained,8,0,,2,True
+quad,accel drift 3.0,untrained,8,0,,2,True
+quad,accel scale_error 3.0,untrained,8,0,,2,True
+quad,accel stuck 0.5,untrained,8,0,,2,True
+quad,accel dropout 0.5,untrained,8,0,,2,True
+quad,mag bias 3.0,trained,8,0,,2,True
+quad,mag noise_inflation 3.0,trained,8,0,,2,True
+quad,mag drift 3.0,untrained,8,0,,2,True
+quad,mag scale_error 3.0,untrained,8,2,15.78,2,True
+quad,mag stuck 0.5,untrained,8,0,,2,True
+quad,mag dropout 0.5,untrained,8,0,,2,True
+quad,healthy,false,8,0,,5,False
+quad,aggressive x1.5,envelope,8,1,6.2,5,False
+quad,aggressive x2,envelope,8,4,10.66,5,False
+quad,accel bias 3.0,trained,8,0,,5,False
+quad,accel noise_inflation 3.0,trained,8,0,,5,False
+quad,accel drift 3.0,untrained,8,0,,5,False
+quad,accel scale_error 3.0,untrained,8,0,,5,False
+quad,accel stuck 0.5,untrained,8,0,,5,False
+quad,accel dropout 0.5,untrained,8,0,,5,False
+quad,mag bias 3.0,trained,8,0,,5,False
+quad,mag noise_inflation 3.0,trained,8,0,,5,False
+quad,mag drift 3.0,untrained,8,0,,5,False
+quad,mag scale_error 3.0,untrained,8,2,15.35,5,False
+quad,mag stuck 0.5,untrained,8,0,,5,False
+quad,mag dropout 0.5,untrained,8,0,,5,False
+quad,healthy,false,8,0,,10,False
+quad,aggressive x1.5,envelope,8,1,8.46,10,False
+quad,aggressive x2,envelope,8,4,13.42,10,False
+quad,accel bias 3.0,trained,8,0,,10,False
+quad,accel noise_inflation 3.0,trained,8,0,,10,False
+quad,accel drift 3.0,untrained,8,0,,10,False
+quad,accel scale_error 3.0,untrained,8,0,,10,False
+quad,accel stuck 0.5,untrained,8,0,,10,False
+quad,accel dropout 0.5,untrained,8,0,,10,False
+quad,mag bias 3.0,trained,8,0,,10,False
+quad,mag noise_inflation 3.0,trained,8,0,,10,False
+quad,mag drift 3.0,untrained,8,0,,10,False
+quad,mag scale_error 3.0,untrained,8,3,17.62,10,False
+quad,mag stuck 0.5,untrained,8,0,,10,False
+quad,mag dropout 0.5,untrained,8,0,,10,False

@@ -61,6 +61,8 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(ROOT))
@@ -77,10 +79,40 @@ NIS_TARGET = {"quadcopter": 9.0, "ground_robot": 3.0}
 
 # Level at which a health entry raises an alert, or None for no such alert.
 # On the robot the entries track injected severity (experiments/health_value.py).
-# On the quadcopter they do not: quad_sim/health_readout.py finds entries
-# above 2 on healthy flights and under 1 under a severity-3 accelerometer or
-# gyro fault. They are still reported as named values; they are not alarmed.
+# On the quadcopter, started from the true attitude, they stay under 2 on
+# healthy flights but reach only 0.6 to 1.0 ten seconds into a severity-3
+# bias (quad_sim/health_readout.py): an alert would not false-alarm, and
+# would not fire in time either. They are reported as named values, not
+# alarmed. The novelty alert is the quadcopter's warning channel.
 HEALTH_ALERT = {"quadcopter": None, "ground_robot": 1.0}
+
+# Devices the epistemic term's novelty is reported for, by channel, and the
+# levels that raise an alert. The levels are set on healthy simulated flights
+# by deploy/calibrate_novelty.py and read from its output; a vehicle with no
+# calibration reports novelty and never alarms on it.
+DEVICES = {"quadcopter": sink_module.QUAD_DEVICES,
+           "ground_robot": {"left": [0], "right": [1], "gyro": [2]}}
+CALIBRATION_NAME = {"quadcopter": "quad", "ground_robot": "robot"}
+
+
+def novelty_alert(vehicle):
+    """Alert levels per device and the smoothing window they were set for.
+
+    From results/novelty_threshold.csv, the rows the calibration chose. With
+    no calibration, ({}, 1.0): novelty is reported and never alarmed.
+    """
+    path = ROOT / "results" / "novelty_threshold.csv"
+    if not path.exists():
+        return {}, 1.0
+    import csv
+    with open(path) as handle:
+        rows = [row for row in csv.DictReader(handle)
+                if row["vehicle"] == CALIBRATION_NAME[vehicle]
+                and row.get("chosen", "True") == "True"]
+    if not rows:
+        return {}, 1.0
+    return ({row["device"]: float(row["threshold"]) for row in rows},
+            float(rows[0]["time_constant"]))
 
 
 class Stop(Exception):
@@ -101,13 +133,21 @@ def run_once(args, log_dir, started_at):
 
     estimator = runtime.Estimator(move, measure, Q, R, start, P0, dt,
                                   health_states=health_states)
-    source = source_module.mavlink_source(args.link, dt_nominal=dt)
+    # The flight controller's attitude, filled by the source before its first
+    # reading. The quadcopter's filter starts from it; see mavlink_source.
+    initial = {} if args.vehicle == "quadcopter" else None
+    source = source_module.mavlink_source(args.link, dt_nominal=dt,
+                                          initial=initial)
     sink = None
     if not args.no_sink:
+        levels, window = novelty_alert(args.vehicle)
         sink = sink_module.Sink(args.sink or args.link,
                                 period=args.report_period,
                                 nis_target=NIS_TARGET[args.vehicle],
-                                health_alert=HEALTH_ALERT[args.vehicle])
+                                health_alert=HEALTH_ALERT[args.vehicle],
+                                devices=DEVICES[args.vehicle],
+                                novelty_alert=levels,
+                                novelty_time_constant=window, dt=dt)
 
     log_path = log_dir / ("%s_%s.csv" % (args.vehicle, started_at))
     steps = 0
@@ -121,7 +161,24 @@ def run_once(args, log_dir, started_at):
     with open(log_path, "w", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(runtime.log_header(names, channels))
+        started = False
         for timestamp, reading in source:
+            if not started and initial is not None:
+                started = True
+                if initial:
+                    estimator.mean[:6] = [initial[k] for k in
+                                          ("roll", "pitch", "yaw", "p", "q",
+                                           "r")]
+                    print("starting from the flight controller's attitude: "
+                          "roll %.1f, pitch %.1f, yaw %.1f deg"
+                          % tuple(np.degrees([initial["roll"], initial["pitch"],
+                                              initial["yaw"]])), flush=True)
+                else:
+                    print("warning: no ATTITUDE from the flight controller; "
+                          "starting level at heading 0. If the vehicle is not "
+                          "facing that way the health estimates will absorb "
+                          "the error for the whole flight.", file=sys.stderr,
+                          flush=True)
             record = estimator.step(timestamp, reading)
             if sink is not None:
                 sink.push(record, health_states)
@@ -204,13 +261,21 @@ def selftest():
         print("process do.")
         return 0
 
+    # The simulated flight comes from quad_sim, whose modules share names with
+    # the robot's. Import them with the robot's lifted out of the cache, then
+    # put the robot's back, so main() below starts in exactly the state a
+    # real launch does. An earlier version left quad_sim's in place, and that
+    # hid a startup crash the vehicle would have hit on its first run.
+    names = ("trajectories", "sensors", "dynamics")
+    robot_modules = {m: sys.modules.pop(m) for m in names if m in sys.modules}
     saved = list(sys.path)
     sys.path.insert(0, str(ROOT / "quad_sim"))
-    for name in ("trajectories", "sensors", "dynamics"):
-        sys.modules.pop(name, None)
     import trajectories as qtraj
     import sensors as qsens
     sys.path[:] = saved
+    for name in names:
+        sys.modules.pop(name, None)
+    sys.modules.update(robot_modules)
 
     flight = qtraj.random_run(3)
     readings = qsens.stack(qsens.read_sensors(flight, seed=3))
@@ -223,13 +288,18 @@ def selftest():
     ground = mavutil.mavlink_connection("udpin:127.0.0.1:%d" % down_port)
     received = []
 
+    truth0 = qtraj.truth_matrix(flight)[0]
+
     def fly():
-        # Heartbeats first so the source's wait_heartbeat returns, then the
-        # readings at the nominal rate.
+        # Heartbeats first so the source's wait_heartbeat returns, and the
+        # flight's true starting attitude as ATTITUDE, which a real flight
+        # controller streams from its own EKF; then the readings at the
+        # nominal rate.
         for _ in range(3):
             vehicle.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_QUADROTOR,
                                        mavutil.mavlink.MAV_AUTOPILOT_ARDUPILOTMEGA,
                                        0, 0, 0)
+            vehicle.mav.attitude_send(0, *[float(v) for v in truth0])
             time.sleep(0.1)
         for k in range(n_steps):
             r = readings[k]
@@ -243,6 +313,11 @@ def selftest():
                 vehicle.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_QUADROTOR,
                                            mavutil.mavlink.MAV_AUTOPILOT_ARDUPILOTMEGA,
                                            0, 0, 0)
+            if k % 5 == 0:
+                # ATTITUDE at 10 Hz, as a flight controller streams it.
+                vehicle.mav.attitude_send(
+                    int(k * qtraj.DT * 1000),
+                    *[float(v) for v in qtraj.truth_matrix(flight)[k]])
             time.sleep(qtraj.DT)
 
     def listen():
@@ -272,22 +347,33 @@ def selftest():
     rows = sum(1 for _ in open(logs[-1])) - 1 if logs else 0
     kinds = {k: received.count(k) for k in set(received)}
 
-    truth = qtraj.truth_matrix(flight)[:rows]
     import pandas as pd
     frame = pd.read_csv(logs[-1]) if logs else None
-    att = (np.degrees(frame[["roll", "pitch"]].values - truth[:, :2])
-           if frame is not None else np.array([[np.nan]]))
+    if frame is not None:
+        # Rows are matched to the truth by timestamp, not position: readings
+        # that arrive while the source waits for ATTITUDE are not logged.
+        index = np.round(frame["time"].values / qtraj.DT).astype(int)
+        keep = (frame["updated"].values == 1) & (index < len(readings))
+        truth = qtraj.truth_matrix(flight)[index[keep]]
+        att = np.degrees(frame[["roll", "pitch"]].values[keep] - truth[:, :2])
+        health = frame[["bias_accel", "bias_gyro", "bias_mag", "noise_accel",
+                        "noise_gyro", "noise_mag"]].values.max()
+    else:
+        att, health = np.array([[np.nan]]), np.nan
 
     print("  exit code               %d" % code)
     print("  log rows                %d of %d" % (rows, n_steps))
     print("  attitude error          %.3f deg" % np.sqrt(np.mean(att ** 2)))
+    print("  largest health estimate %.2f on a healthy flight" % health)
     print("  messages returned       %s" % ", ".join(
         "%s x%d" % kv for kv in sorted(kinds.items())) or "none")
 
-    ok = (code == 0 and rows == n_steps
+    # A healthy flight started from the flight controller's attitude should
+    # keep every health estimate low; started half a turn off it would not.
+    ok = (code == 0 and rows == n_steps and health < 2.0
           and kinds.get("NAMED_VALUE_FLOAT", 0) > 0)
-    print("\n  process ran, every reading logged, reports returned: %s"
-          % ("yes" if ok else "NO"))
+    print("\n  process ran, every reading logged, reports returned, health")
+    print("  quiet on a healthy flight: %s" % ("yes" if ok else "NO"))
     return 0 if ok else 1
 
 
