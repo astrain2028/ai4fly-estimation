@@ -19,19 +19,30 @@ entry stays above a level.
 Result
 ------
 
-Healthy flights: on three of eight, one entry sits above 2.0 for nearly the
-whole flight (the magnetometer bias entry on one, the gyro bias entry on
-another, the magnetometer noise entry on a third). Faulted flights: an
-accelerometer or gyro bias at severity 3 moves the matching entry to under
-1.0, and noise inflation on either device to about 0.1. The magnetometer
-entries do respond to faults, to about 4.6 and 2.6, and also to nothing.
+Healthy flights, started from the true first state as every other experiment
+is: no entry passes 2 on any of eight flights; the largest is 1.51.
 
-So the quadcopter's health entries are not severities. They earn their place
-in the state by improving accuracy, as the bakeoff shows, but what they
-absorb on this vehicle is measurement-map error as much as sensor fault, and
-the two are not separable from the entry's value. The level alert is
-therefore off for the quadcopter in deploy/pi_main.py, and the robot's
-health_value result should not be read as transferring.
+That corrects an earlier version of this file, which started the filter from
+zeros -- heading 0 -- and reported entries sitting above 2 for nearly the
+whole of three healthy flights. Those three were the three flying near 180
+degrees: the filter began half a turn wrong, and the health entries absorbed
+the mismatch while it turned and never gave it back. The zero-start runs are
+kept in the output, labelled, so the effect stays reproducible. On the
+vehicle the filter now starts from the flight controller's own attitude
+(deploy/mavlink_source.py), because this is what happens otherwise.
+
+Faulted flights: ten seconds after a severity-3 bias arrives mid-flight, the
+matching bias entry reads 0.62 to 0.97 -- rising, but nowhere near 3. The
+ground robot's trace shows a mid-run bias entry still climbing after 32
+seconds (experiments/trace.py), so this may be slowness rather than a wrong
+answer; ten seconds does not distinguish the two. Noise entries stay near
+zero under noise faults, as they must: a fault that does not move the mean
+gives the first-moment update nothing to read (dh/dm = 0).
+
+So on the quadcopter the health entries are quiet when nothing is wrong and
+slow to report a fault. A level alert on them would not false-alarm but
+would not fire within ten seconds either, and it stays off in
+deploy/pi_main.py; the entries are reported, not alarmed.
 
     python quad_sim/health_readout.py
 """
@@ -65,10 +76,18 @@ HEALTHY_SEEDS = range(1, 9)
 SEVERITIES = [2.0, 3.0]
 
 
-def health_track(readings):
-    """The six health entries at every step of the deployed filter."""
+def health_track(readings, initial=None):
+    """The six health entries at every step of the deployed filter.
+
+    ``initial`` is the attitude and rates the filter starts from. Every other
+    experiment starts from the true first state, and so does this one; None
+    starts from all zeros, which is how an earlier version of this file ran
+    and is kept only to show what that did (see the module docstring).
+    """
     (move, measure, Q, R, start, P0, dt,
      health_states, names, channels) = runtime.quadcopter()
+    if initial is not None:
+        start[:len(initial)] = initial
     estimator = runtime.Estimator(move, measure, Q, R, start, P0, dt,
                                   health_states=health_states)
     track = []
@@ -95,16 +114,25 @@ def main():
     print("each level, at 50 Hz, and which entry it was.\n")
     print("  %-6s" % "seed" + "".join("  %6s" % ("> %.0f" % L) for L in LEVELS)
           + "   entry        peak")
-    for seed in HEALTHY_SEEDS:
-        flight = trajectories.random_run(seed)
-        track = health_track(sensors.stack(sensors.read_sensors(flight,
-                                                               seed=seed)))
-        runs = [[longest_run(track[:, j] > L) for j in range(6)] for L in LEVELS]
-        worst = int(np.argmax(runs[0]))
-        print("  %-6d" % seed + "".join("  %6d" % max(r) for r in runs)
-              + "   %-12s %.2f" % (ENTRIES[worst], track[:, worst].max()))
-        rows.append(["healthy seed %d" % seed, ENTRIES[worst], len(track)]
-                    + [max(r) for r in runs] + [track[-1, worst]])
+    for start in ("truth", "zero"):
+        print("  started from %s" % ("the true first state" if start == "truth"
+                                     else "zeros (heading 0)"))
+        for seed in HEALTHY_SEEDS:
+            flight = trajectories.random_run(seed)
+            initial = (trajectories.truth_matrix(flight)[0]
+                       if start == "truth" else None)
+            track = health_track(sensors.stack(sensors.read_sensors(
+                flight, seed=seed)), initial)
+            runs = [[longest_run(track[:, j] > L) for j in range(6)]
+                    for L in LEVELS]
+            worst = int(np.argmax(track.max(axis=0)))
+            heading = np.degrees(trajectories.truth_matrix(flight)[0, 2])
+            print("  %-6d" % seed + "".join("  %6d" % max(r) for r in runs)
+                  + "   %-12s %.2f   heading %+.0f deg"
+                  % (ENTRIES[worst], track[:, worst].max(), heading))
+            rows.append(["healthy seed %d" % seed, start, ENTRIES[worst],
+                         len(track)] + [max(r) for r in runs]
+                        + [track[-1, worst], track[:, worst].max()])
 
     print("\nFaulted flights, fault arriving halfway: the matching entry's")
     print("longest stretch above each level after onset, and its final value.")
@@ -120,28 +148,30 @@ def main():
                 profile = np.zeros(n)
                 profile[n // 2:] = severity
                 broken = faults.apply_fault(raw, device, mode, profile, seed=d)
-                track = health_track(sensors.stack(broken))[n // 2:]
+                track = health_track(sensors.stack(broken),
+                                     trajectories.truth_matrix(flight)[0])
+                track = track[n // 2:]
                 j = offset + d
                 runs = [longest_run(track[:, j] > L) for L in LEVELS]
                 label = "%s %s severity %.0f" % (device, mode, severity)
                 print("  %-34s" % label + "".join("  %6d" % r for r in runs)
                       + "   %5d   %.2f" % (len(track), track[-1, j]))
-                rows.append([label, ENTRIES[j], len(track)] + runs
-                            + [track[-1, j]])
+                rows.append([label, "truth", ENTRIES[j], len(track)] + runs
+                            + [track[-1, j], track[:, j].max()])
 
     out = ROOT / "results" / "quad_health_readout.csv"
     out.parent.mkdir(exist_ok=True)
     with open(out, "w") as handle:
-        handle.write("condition,entry,steps," + ",".join(
-            "above_%.0f" % L for L in LEVELS) + ",final\n")
+        handle.write("condition,start,entry,steps," + ",".join(
+            "above_%.0f" % L for L in LEVELS) + ",final,peak\n")
         for row in rows:
             handle.write(",".join(str(v) for v in row) + "\n")
     print("\nWrote %s" % out.relative_to(ROOT))
 
-    print("\nThe entries improve accuracy (quad_sim/bakeoff.py) without")
-    print("reading as severities. A level alert on them would fire on")
-    print("healthy flights and miss accelerometer and gyro faults, so")
-    print("deploy/pi_main.py leaves it off for this vehicle.")
+    print("\nStarted from the true first state, the entries stay quiet on")
+    print("healthy flights and are slow to report a fault; started from")
+    print("heading 0, flights near 180 degrees carry the heading error in")
+    print("their health entries for the rest of the flight.")
 
 
 if __name__ == "__main__":
