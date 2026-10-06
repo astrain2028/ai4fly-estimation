@@ -136,28 +136,51 @@ class Layered:
     estimator free to drift apart.
     """
 
-    def __init__(self, base, epistemic=None, health_states=None, n_channels=3):
+    def __init__(self, base, epistemic=None, health_states=None, n_channels=3,
+                 record=True):
         self.base = base
         self.epistemic = epistemic          # None, or a callable like doubt's
         self.health_states = (HEALTH_STATES if health_states is None
                               else list(health_states))
         self.n_channels = n_channels
+        # Experiments read the whole history back; a vehicle running for an
+        # hour must not keep it -- at 50 Hz it grows by over 100 MB an hour.
+        # deploy/runtime.py turns it off.
+        self.record = record
         self.reset()
 
     def reset(self):
         self.covariance = None              # running E[nu nu'], diagonal
         self.unmodelled = np.zeros(self.n_channels)
         self.last_R = np.zeros(self.n_channels)  # what went into the last update
+        self.last_parts = (np.zeros(self.n_channels), np.zeros(self.n_channels),
+                           np.zeros(self.n_channels), np.ones(self.n_channels))
         self.trace = []
+        # (aleatoric, epistemic, unmodelled, novelty ratio) per step, as the
+        # step's update used them. Novelty is 1 when there is no epistemic term.
+        self.parts = []
+        self.doubt = None   # the epistemic term's novelty ratio, per channel
 
     def __call__(self, states):
         states = np.atleast_2d(states)
         readings, R = self.base(states)
+        aleatoric = np.diagonal(R, axis1=1, axis2=2).mean(axis=0)
 
+        epistemic = np.zeros(self.n_channels)
         if self.epistemic is not None:
             extra = self.epistemic(states)
+            epistemic = extra.mean(axis=0)
             for k in range(len(states)):
                 R[k] = R[k] + np.diag(extra[k])
+            # How unusual the input is to the model, per channel: 1 on
+            # ordinary inputs. Reported in flight; see epistemic.py.
+            self.doubt = getattr(self.epistemic, "ratio", None)
+        # The three terms as this step's update will use them, and the input's
+        # novelty. The residual is the value going in, not the one observe()
+        # is about to write.
+        novelty = (np.ones(self.n_channels) if self.doubt is None
+                   else np.array(self.doubt, dtype=float))
+        self.last_parts = (aleatoric, epistemic, self.unmodelled.copy(), novelty)
 
         # The average R the filter will actually use. The UKF weights the
         # sigma points when it averages and this does not, which is a
@@ -194,7 +217,9 @@ class Layered:
         target = np.maximum(self.covariance - scatter
                             - (self.last_R - self.unmodelled), 0.0)
         self.unmodelled += FORGET * (target - self.unmodelled)
-        self.trace.append(self.unmodelled.copy())
+        if self.record:
+            self.trace.append(self.unmodelled.copy())
+            self.parts.append(self.last_parts)
 
     def constrain(self, mean):
         mean = np.array(mean, dtype=float)
@@ -202,24 +227,26 @@ class Layered:
         return mean
 
 
-def load_measurement_model(path=None, with_epistemic=False):
-    """The health arm, plus an additive residual, optionally plus doubt.
+def load_measurement_model(path=None, with_epistemic=True):
+    """The health arm, plus the epistemic term, plus an additive residual.
 
-    The epistemic term is off by default. It needs models/doubt/laplace.py to
-    have been fitted, and the point of this arm is the algebra of the third
-    term rather than the presence of the second.
+    The epistemic term is models/layered/epistemic.py over the health model's
+    last-layer posterior, fitted by models/doubt/laplace.py and stored beside
+    that arm as doubt_laplace.npz -- the posterior belongs to the health
+    model, and doubt was simply the first arm to use it. Only the variance is
+    taken from it here; doubt's gain schedule is not, since in this algebra an
+    unsure model already inflates S and the residual stands down on its own.
+    ``with_epistemic=False`` is the ablation experiments/epistemic.py runs.
     """
     base = _health().load_measurement_model(path)
     epistemic = None
-
     if with_epistemic:
-        doubt = _load(ROOT / "models" / "doubt" / "measurement.py",
-                      "doubt_for_layered")
-        wrapped = doubt.load_measurement_model(path)
-
-        def epistemic(states):
-            return wrapped._doubt(states)[0]
-
+        term = _load(ROOT / "models" / "layered" / "epistemic.py",
+                     "layered_epistemic")
+        path = ROOT / "models" / "health" / "health_model.pt" if path is None else path
+        epistemic = term.Epistemic.from_torch(
+            path, ROOT / "models" / "doubt" / "doubt_laplace.npz",
+            take=TAKE, n_vehicle=5)
     return Layered(base, epistemic)
 
 

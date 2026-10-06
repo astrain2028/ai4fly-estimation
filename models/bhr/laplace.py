@@ -56,10 +56,13 @@ and differentiating twice with respect to eta1:
 
     d^2(-log p) / d(eta1)^2  =  -1 / (2*eta2)  =  variance
 
-The curvature is just the predicted variance. So a row the model thinks is
-noisy contributes little curvature -- it pins the weights down weakly, which
-is exactly right, because a noisy observation is weak evidence. That falls
-straight out of the parameterisation rather than having to be argued for.
+The curvature is just the predicted variance. That is curvature on eta1, so a
+row the model thinks is noisy contributes more of it, not less. The weak
+evidence a noisy row carries shows up one step later: the reading's mean is
+eta1 times the variance, so the information on the mean is 1/variance, and
+Var[mean] = variance^2 * Var[eta1] below is where a noisy row's weakness
+reappears. Both fall out of the parameterisation rather than having to be
+argued for.
 
 Summary
 -------
@@ -220,6 +223,40 @@ def fit(model_path=None, data_path=DATA):
     print("\nSaved bhr_laplace.npz")
 
     return model, posteriors, (x_mean, x_std, y_mean, y_std), val_df
+
+
+def run_sums(phi, residual, run_index, n_runs):
+    """Per-run sums of the score, phi * residual, for one output.
+
+    The score of the loss with respect to eta1 is (mean - y) * phi, in the
+    model's scaled units. Summing it within each run is the first half of a
+    run-level (cluster-robust) covariance; see run_posterior. Accumulates, so
+    it can be called chunk by chunk and the results added.
+    """
+    order = np.argsort(run_index, kind="stable")
+    index = run_index[order]
+    starts = np.flatnonzero(np.r_[True, index[1:] != index[:-1]])
+    sums = np.zeros((n_runs, phi.shape[1]))
+    sums[index[starts]] = np.add.reduceat((phi * residual[:, None])[order],
+                                          starts, axis=0)
+    return sums
+
+
+def run_posterior(A_inv, sums):
+    """The posterior covariance, with runs rather than rows as the unit.
+
+    Laplace treats every row as independent evidence. In these datasets rows
+    come in runs of a thousand at 50 Hz that share things the model is not
+    told -- a per-run gyro bias, the trajectory's slow errors -- so the rows
+    in a run are not a thousand independent looks, and the curvature
+    overcounts what the data pins down. The sandwich A^-1 B A^-1, with B the
+    outer product of the per-run score sums, keeps Laplace's centre and
+    shape and takes the spread from how much runs actually disagree. Where
+    rows are independent it equals A^-1 in expectation; where they are not,
+    it is wider by the design effect. It is the standard cluster-robust
+    covariance (White 1982; Liang and Zeger 1986).
+    """
+    return A_inv @ (sums.T @ sums) @ A_inv
 
 
 def epistemic_variance(model, posteriors, states_scaled):

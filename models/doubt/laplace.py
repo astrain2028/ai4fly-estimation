@@ -142,10 +142,32 @@ def fit(model_path=None, data_path=DATA):
     print("\n  typical in-distribution doubt: "
           + ", ".join("%s %.3e" % (n, r) for n, r in zip(OUTPUTS, reference)))
 
+    # The same posterior with runs, not rows, as the unit of evidence; see
+    # run_posterior in models/bhr/laplace.py. The doubt arm keeps the row
+    # posterior above, so its published results do not move; layered, whose
+    # epistemic term is fitted here for the first time, uses this one.
+    with torch.no_grad():
+        mean_s, _ = health.bhr.to_mean_and_var(eta1, eta2)
+    y_mean = saved["y_mean"].numpy().astype(np.float64)
+    ys = (train_df[OUTPUTS].values - y_mean) / y_std.numpy().astype(np.float64)
+    residual = mean_s.numpy().astype(np.float64) - ys
+    run_index = np.unique(train_df["run"].values, return_inverse=True)[1]
+    n_runs = int(run_index.max()) + 1
+    posteriors_run = [base.run_posterior(
+        posteriors[j], base.run_sums(phi, residual[:, j], run_index, n_runs))
+        for j in range(len(OUTPUTS))]
+    reference_run = np.array([
+        ((phi @ C) * phi).sum(axis=1).mean() for C in posteriors_run])
+    print("  run-level posterior, %d runs: typical doubt "
+          % n_runs + ", ".join("%s %.3e (%.1fx)" % (n, r, r / r0) for n, r, r0
+                               in zip(OUTPUTS, reference_run, reference)))
+
     np.savez(Path(__file__).parent / "doubt_laplace.npz",
              posteriors=np.array(posteriors),
              tau=np.array(best_tau),
              reference=reference,
+             posteriors_run=np.array(posteriors_run),
+             reference_run=reference_run,
              n_features=n_features)
     print("\nSaved doubt_laplace.npz")
     return model, posteriors, reference, (x_mean, x_std, y_std), val_df

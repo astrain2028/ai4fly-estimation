@@ -107,6 +107,12 @@ N_STATES = 12
 HEALTH_STATES = [6, 7, 8, 9, 10, 11]
 N_CHANNELS = len(CHANNELS)
 
+# Yaw's position among the model's inputs. It is wrapped into (-pi, pi]
+# before the network sees it: see wrap_angle in models/layered/epistemic.py.
+YAW = 2
+_term = _load(ROOT / "models" / "layered" / "epistemic.py",
+              "layered_epistemic_quad")
+
 # The filter's state is exactly the model's input, in the same order, so the
 # model reads every entry. On the ground robot two states -- the accelerations
 # -- had to be skipped because no sensor reports them, and TAKE existed to do
@@ -192,6 +198,7 @@ def load_health_model(path=None):
     def measure(states):
         states = np.atleast_2d(states)
         picked = states[:, TAKE].copy()
+        picked[:, YAW] = _term.wrap_angle(picked[:, YAW])
         picked[:, N_VEHICLE:] = np.clip(picked[:, N_VEHICLE:], 0.0, None)
 
         x = torch.tensor(picked, dtype=torch.float32)
@@ -210,9 +217,25 @@ def load_health_model(path=None):
     return measure
 
 
-def load_measurement_model(path=None):
-    """The learned model wrapped in the additive residual layer."""
-    return layered.Layered(load_health_model(path),
+def load_epistemic(path=None, laplace=None):
+    """The model's doubt about its own reading, per channel, in sensor units.
+
+    models/layered/epistemic.py over the posterior quad_sim/laplace.py fits --
+    the same implementation the ground robot and the vehicle use.
+    """
+    path = HERE / "quad_health.pt" if path is None else path
+    laplace = HERE / "quad_laplace.npz" if laplace is None else laplace
+    return _term.Epistemic.from_torch(path, laplace, take=TAKE,
+                                      n_vehicle=N_VEHICLE, wrap=[YAW])
+
+
+def load_measurement_model(path=None, with_epistemic=True):
+    """The learned model wrapped in layered's epistemic and residual terms.
+
+    ``with_epistemic=False`` is the ablation quad_sim/epistemic.py runs.
+    """
+    epistemic = load_epistemic(path) if with_epistemic else None
+    return layered.Layered(load_health_model(path), epistemic=epistemic,
                            health_states=HEALTH_STATES,
                            n_channels=N_CHANNELS)
 
