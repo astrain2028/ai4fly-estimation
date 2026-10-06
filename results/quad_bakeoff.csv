@@ -13,17 +13,17 @@ adaptive R (Mehra),bias 3.0,bias,3,first,True,2.85031,13.3919
 adaptive R (Mehra),noise 0.5,noise_inflation,0.5,second,True,0.959849,10.1547
 adaptive R (Mehra),noise 1.5,noise_inflation,1.5,second,True,1.22938,11.3926
 adaptive R (Mehra),noise 3.0,noise_inflation,3,second,True,1.56003,15.4509
-health-conditioned,healthy,none,0,none,True,0.709089,10.0312
-health-conditioned,bias 0.5,bias,0.5,first,True,0.78052,10.1152
-health-conditioned,bias 1.5,bias,1.5,first,True,0.883021,10.4402
-health-conditioned,bias 3.0,bias,3,first,True,0.941306,10.6954
-health-conditioned,noise 0.5,noise_inflation,0.5,second,True,0.728168,10.7001
-health-conditioned,noise 1.5,noise_inflation,1.5,second,True,0.754622,15.8261
-health-conditioned,noise 3.0,noise_inflation,3,second,True,0.806481,32.0576
-layered,healthy,none,0,none,True,0.691322,8.7336
-layered,bias 0.5,bias,0.5,first,True,0.703411,8.65963
-layered,bias 1.5,bias,1.5,first,True,0.787002,8.45416
-layered,bias 3.0,bias,3,first,True,1.0308,8.16429
-layered,noise 0.5,noise_inflation,0.5,second,True,0.708104,8.99562
-layered,noise 1.5,noise_inflation,1.5,second,True,0.823464,9.45118
-layered,noise 3.0,noise_inflation,3,second,True,1.09767,10.0114
+health-conditioned,healthy,none,0,none,True,0.709099,10.031
+health-conditioned,bias 0.5,bias,0.5,first,True,0.780515,10.1154
+health-conditioned,bias 1.5,bias,1.5,first,True,0.882693,10.4399
+health-conditioned,bias 3.0,bias,3,first,True,0.939917,10.6941
+health-conditioned,noise 0.5,noise_inflation,0.5,second,True,0.728146,10.7
+health-conditioned,noise 1.5,noise_inflation,1.5,second,True,0.754613,15.8261
+health-conditioned,noise 3.0,noise_inflation,3,second,True,0.806003,32.0598
+layered,healthy,none,0,none,True,0.677477,8.69509
+layered,bias 0.5,bias,0.5,first,True,0.696132,8.63111
+layered,bias 1.5,bias,1.5,first,True,0.779767,8.42473
+layered,bias 3.0,bias,3,first,True,1.01911,8.12805
+layered,noise 0.5,noise_inflation,0.5,second,True,0.699164,8.96695
+layered,noise 1.5,noise_inflation,1.5,second,True,0.81322,9.42795
+layered,noise 3.0,noise_inflation,3,second,True,1.08773,9.9898
