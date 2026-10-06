@@ -1,0 +1,13 @@
+arm,states,sigma_points,median_ms,min_ms,max_ms,starred,budget_ms
+analytic + best const R,7,15,0.80867,0.77866,0.82802,False,20
+plain network,7,15,0.94714,0.91445,0.97639,False,20
+residual network,7,15,1.1323,1.1089,1.25,False,20
+adaptive R (Mehra),7,15,0.86329,0.82787,0.94595,False,20
+Gaussian process,7,15,20.805,20.496,22.534,False,20
+heteroscedastic,7,15,1.6369,1.5545,1.7583,False,20
+ensemble of 5,7,15,1.9107,1.7779,1.9927,False,20
+health-conditioned,13,27,1.9253,1.8651,2.0199,False,20
+combined,13,27,2.005,1.8787,2.17,False,20
+doubt-driven,13,27,3.1646,3.005,3.371,False,20
+layered,13,27,2.5745,2.4368,2.8158,False,20
+MMAE bank of 7,7,105,6.1983,5.9593,6.426,False,20

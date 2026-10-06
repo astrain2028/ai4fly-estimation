@@ -149,12 +149,26 @@ def main():
           % ("", "states", "sigma pts", "median ms", "spread", "of budget"))
     print("-" * 76)
 
+    rows = []
     for label, measure, n_states in entries:
         median, low, high = time_arm(measure, R)
+        rows.append((label, n_states, 2 * n_states + 1, median, low, high))
+
+    # MMAE replaces the UKF rather than plugging into one, so it cannot go
+    # through time_arm. Its run() is timed whole instead, with the same
+    # warmup, repeats and median, and divided by the steps.
+    try:
+        mmae = _load(ROOT / "models" / "mmae" / "measurement.py",
+                     "timing_mmae")
+        rows.append(("MMAE bank of 7",) + time_bank(mmae.MMAE(Q, R)))
+    except Exception as problem:
+        print("  (MMAE unavailable: %s)" % str(problem)[:60])
+
+    for label, n_states, points, median, low, high in rows:
         spread = high - low
         flag = " *" if spread > 0.5 * median else ""
         print("%-24s %7d %10d %10.3f %9.3f%s %8.0f%%"
-              % (label, n_states, 2 * n_states + 1, median, spread, flag,
+              % (label, n_states, points, median, spread, flag,
                  100.0 * median / BUDGET_MS))
 
     print("-" * 76)
@@ -162,6 +176,38 @@ def main():
     print("\n* means the fastest and slowest repeat differed by more than half")
     print("  the median, which is a machine-load problem rather than a")
     print("  property of the arm. Do not quote a starred number.")
+
+    import pandas as pd
+    frame = pd.DataFrame(rows, columns=["arm", "states", "sigma_points",
+                                        "median_ms", "min_ms", "max_ms"])
+    frame["starred"] = (frame["max_ms"] - frame["min_ms"]) > 0.5 * frame["median_ms"]
+    frame["budget_ms"] = BUDGET_MS
+    path = ROOT / "results" / "timing.csv"
+    frame.to_csv(path, index=False, float_format="%.5g")
+    print("\nWrote %s" % path.relative_to(ROOT))
+
+
+def time_bank(bank):
+    """MMAE's cost per step: its whole run() over STEPS readings, timed.
+
+    Returns (states, sigma points summed over the bank, median, min, max).
+    """
+    run, meas, truth = make_run(0)
+    readings = np.column_stack([meas["left_encoder"], meas["right_encoder"],
+                                meas["gyro"]])[:STEPS]
+    start = truth[0].copy()
+    bank.run(readings[:WARMUP], start, P0.copy(), DT)
+    per_repeat = []
+    for _ in range(REPEATS):
+        bank.reset()
+        started = time.perf_counter()
+        bank.run(readings, start, P0.copy(), DT)
+        per_repeat.append(1000.0 * (time.perf_counter() - started) / STEPS)
+    per_repeat = np.array(per_repeat)
+    n = len(start)
+    hypotheses = len(getattr(bank, "filters", [])) or 7
+    return (n, hypotheses * (2 * n + 1), float(np.median(per_repeat)),
+            float(per_repeat.min()), float(per_repeat.max()))
 
 
 if __name__ == "__main__":
