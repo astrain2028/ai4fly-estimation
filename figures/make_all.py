@@ -16,7 +16,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 ORDER = ["trace", "crossing", "moments", "quad", "scatter", "health_readout",
-         "frozen", "cost"]
+         "epistemic", "frozen"]
 
 
 def main():

@@ -53,11 +53,11 @@ state costs one wider filter: sigma points scale as 2n+1, so seven states to
 thirteen is fifteen points to twenty-seven, under a factor of two.
 
 Measured rather than asserted, since the assertion came first and was wrong.
-`models/mmae` costs 0.779 ms per hypothesis; `models/health` costs 1.502 ms in
-total. A dozen hypotheses is therefore about seven times the augmented filter,
-not the order of magnitude claimed here before the arm existed. The argument
-survives the correction, and the correction is the reason the baseline was
-built.
+`models/mmae` costs 0.779 ms per hypothesis; `models/health` costs about
+1.55 ms in total (the cost table below). A dozen hypotheses is therefore about
+six times the augmented filter, not the order of magnitude claimed here before
+the arm existed. The argument survives the correction, and the correction is
+the reason the baseline was built.
 
 A continuous health variable is also a quantity the filter can carry
 natively, and it admits partial degradation,
@@ -274,23 +274,29 @@ The health-conditioned model is the one exception, and only because of a
 feedback path. Six of its eleven inputs are health levels *the filter itself
 estimates and feeds back*. Training covers severities to 3.0, and nothing stops
 the update driving an estimate past that while trying to explain a fault the
-model cannot represent — measured at 9.19 on `scale_error`. That is genuine
-input-space novelty, so the question the term can answer is not "is this fault
-familiar", which is unanswerable, but "is this health level familiar", which is
-not.
+model cannot represent — measured at 9.19 on `scale_error` at severity 2.0
+(the `models/doubt` self-test). In `layered`, where the residual absorbs that
+fault first, the entry still passes the ceiling, peaking near 4.0 at severity
+3.0 on the bakeoff seeds. That is genuine input-space novelty, so the question
+the term can answer is not "is this fault familiar", which is unanswerable, but
+"is this health level familiar", which is not.
 
 So the honest division of labour is three-way, and only the first row is what
 epistemic uncertainty is for:
 
 | signal read | mechanism | owns |
 |---|---|---|
-| novelty in **input** space | Laplace, GP, ensemble | unfamiliar operating *conditions* |
+| novelty in **input** space | Laplace, GP, ensemble | unfamiliar operating *conditions*; on the health model, unfamiliar health levels |
 | innovation **direction** | health conditioning | mean-shifting faults |
 | innovation **magnitude** | covariance matching | variance faults, including unseen |
 
 Test 3 below lives in the first row. The held-out fault experiment lives in the
-third, which is why covariance matching is the fallback there and epistemic
-uncertainty offers nothing.
+third, which is why covariance matching is the fallback there for the
+estimate: the epistemic term moves the robot's error by −0.05% on average
+(`results/epistemic.csv`). It is not silent, though. Read through the
+fed-back health inputs, its novelty flags two of the four held-out modes,
+`scale_error` and `stuck`, on 8 of 8 runs each, with no false alarm on healthy
+runs; it misses `drift` (1 of 8) and `dropout` (0 of 8).
 
 De Lucas Álvarez et al. [16] report the closest empirical test of that claim.
 Training a heteroscedastic correction to gyro measurements and taking the
@@ -306,6 +312,15 @@ inside the filter rather than upstream of it, since their network corrects
 measurements before the estimator sees them and reports no consistency
 metrics.
 
+This project now answers both for itself: the term is a single-pass
+last-layer posterior inside the filter (`models/layered/epistemic.py`). On the
+robot its novelty responds to two of the four degradations the model was not
+trained on — a mean of 4.05 on `scale_error` 3.0 and 3.99 on `stuck` 0.5,
+against 1.09 healthy — and the calibrated alert catches both on 8 of 8 runs.
+On the quadcopter, among faults it catches only magnetometer `scale_error`
+(2 of 8 flights); it catches 6 of 8 flights at twice the training rates. The
+details are under *The epistemic term, and what it is for*, below.
+
 The same signal bears on fault coverage. A health-conditioned map learns the
 degradation modes present in its training data; a mode outside that set is
 unrepresented, and the model still returns a health estimate with nothing to
@@ -316,8 +331,10 @@ in-distribution fails under even mild shift.
 
 Whether a full Bayesian posterior is warranted, or whether a simpler
 distributional score in the manner of Hendrycks and Gimpel [10] suffices, is
-open here and consequential for deployment, since the two differ by roughly
-an order of magnitude in inference cost.
+consequential for deployment, and was settled here by a middle course: a
+posterior over the last layer only, which costs one forward pass (Test 3, 1×
+against the ensemble's 5×) and adds 34% per filter step to `layered` (the
+layered/health ratio in `results/timing.csv`).
 
 Reporting where a learned component's knowledge runs out is a narrow instance
 of a broader capability: Israelsen et al. [13] treat competency
@@ -361,8 +378,10 @@ among evidence-only recursive estimators.
 Two cautions on how far the citation reaches. Neither paper models sensor
 faults or health, and neither reports NIS or NEES, so they bear on the
 Gaussian assumption and not on any result here. And "epistemic" means
-something different in them. Here it is a Bayesian quantity, the variance of
-a posterior over network weights. There it is ignorance represented
+something different in them. Here it is a probabilistic quantity: the
+variance that a covariance over the network's last-layer weights — Laplace's,
+widened to a run-level cluster-robust sandwich [31, 32] — propagates to the
+prediction. There it is ignorance represented
 non-probabilistically, as what has not been ruled out. The two share a
 motivation and no formalism, and a comparison would need a common metric that
 neither the possibilistic filter's outputs nor a chi-square consistency test
@@ -398,10 +417,14 @@ time. This excludes sampling-based posteriors, whose cost trades against
 accuracy through a tunable parameter rather than a bound, and deep ensembles,
 which scale in the ensemble size. A health-conditioned map is evaluated at
 every sigma point — forward evaluations only, exportable to a lean runtime,
-but scaling with the augmented state dimension. An epistemic term adds a
-Jacobian: bounded, but requiring a runtime with automatic differentiation.
-Both admit an execution bound; the constants differ and the comparison is
-empirical.
+but scaling with the augmented state dimension. An epistemic term from a
+last-layer posterior needs no automatic differentiation: the only Jacobian it
+uses is the last hidden layer, which the forward pass already computes, so it
+runs in numpy on the vehicle (`models/layered/epistemic.py`,
+`deploy/runtime.py`). Its cost is further forward passes and one quadratic
+form per channel at every sigma point — for `layered`, about 34% per step over
+`health`. Both admit an execution bound; the constants differ and the
+comparison is empirical.
 
 ## Contents
 
@@ -422,15 +445,15 @@ empirical.
 | `models/health/train.py` | The thesis: learns `h(x, m)` and `R(x, m)` with health among the inputs. Architecturally BHR with eleven inputs instead of five — it imports BHR's loss and training loop rather than copying them |
 | `models/health/measurement.py` | The thirteen-state filter: six health entries, a constraint keeping them non-negative, and the widened `Q` and `P0` |
 | `models/combined/measurement.py` | Health plus an adaptive multiplier on `R`, for the fault family health structurally cannot see |
-| `models/layered/measurement.py` | The same two mechanisms added rather than multiplied, so the floor is `max(0, ·)` instead of a tuned constant. Four constants become one |
-| `models/doubt/` | Laplace on the health model, with the epistemic term setting how fast the adaptive layer may move. Learning the adaptation rate has prior art in [24]. Kept out of `common.ARMS` — see the note there |
+| `models/layered/measurement.py` | Health's learned covariance, an epistemic term (on by default, from the health model's run-level last-layer posterior) and a covariance-matching residual, added rather than multiplied: `R = R_aleatoric + R_epistemic + R_unmodelled`. So the floor is `max(0, ·)` instead of a tuned constant. Four constants become one |
+| `models/doubt/` | Laplace on the health model, with the epistemic term setting how fast the adaptive layer may move. Learning the adaptation rate has prior art in [24]. Kept out of `common.ARMS` — see the note there. `laplace.py` here also fits the run-level posterior that `layered` uses |
 | `models/mmae/measurement.py` | Multiple-model adaptive estimation: a bank of filters, one per failure hypothesis, blended by posterior probability. The classical baseline, and complementarity by enumeration |
 | `models/*/measurement.py` | Each arm on one interface: states in, readings out, and a per-step covariance where the arm has one |
 | `robot/make_dataset.py` | Regenerates the healthy dataset, with sensor noise growth, encoder resolution, and vehicle calibration error as parameters |
 | `robot/make_faulted.py` | The same with degraded sensors and labelled severity, per sample rather than per run so a fault can arrive partway through |
 | `models/bhr/laplace.py` | Laplace posterior over the heteroscedastic model's last layer: epistemic uncertainty at a single forward pass, prior precision chosen by evidence |
 | `experiments/common.py` | Shared filter settings, arm registry, and scoring, so no experiment can quietly choose its own baseline |
-| `experiments/bakeoff.py` | Every arm, one seed set, one severity ladder. Writes `results/bakeoff.csv` per seed, before averaging, because a mean cannot be un-averaged later |
+| `experiments/bakeoff.py` | Every arm in `common.ARMS` plus MMAE, one seed set, one severity ladder. Writes `results/bakeoff.csv` per seed, before averaging, because a mean cannot be un-averaged later. Named arms (e.g. `layered`) go to `results/bakeoff_partial.csv`; `layered`'s rows are kept as `results/bakeoff_layered.csv` |
 | `experiments/moments.py` | The taxonomy as a prediction about faults nobody trained on, written down before the run |
 | `experiments/complementarity.py` | The two mechanisms separated by what they read: direction against magnitude |
 | `experiments/heldout.py` | Trained on two fault modes, scored on four held out — the test that flatters least |
@@ -442,11 +465,15 @@ empirical.
 | `experiments/reproducibility.py` | Whether a retrain from the fixed seed reproduces the saved model. It does, bit-exactly |
 | `experiments/scatter.py` | Whether the UKF's claimed measurement scatter matches the empirical one. On the quadcopter it is 8× low, which is why covariance matching over-inflates `R` there |
 | `experiments/frozen.py` | A three-line variance check for a frozen sensor, in front of the analytic model and of `layered` alike, against the fault the taxonomy cannot place |
-| `quad_sim/health_readout.py` | Whether the quadcopter's health entries read as severities, in the deployed configuration. They do not, which is why the level alert is off for that vehicle |
+| `quad_sim/health_readout.py` | Whether the quadcopter's health entries read as severities, in the deployed configuration. No entry passes 2 on any of eight healthy flights when the filter starts from the true first state (highest 1.51; one flight's gyro-noise entry is above 1 for most of the flight); slow to report a fault mid-flight. Also keeps the zero-start runs that once made healthy flights look faulted |
+| `models/layered/epistemic.py` | `layered`'s second term in numpy, shared by both simulators and the vehicle: epistemic variance from a last-layer posterior, and the novelty ratio reported in flight |
+| `quad_sim/laplace.py` | The quadcopter model's last-layer posterior, Laplace and run-level (cluster-robust), fitted in chunks over 325,000 rows |
+| `experiments/epistemic.py`, `quad_sim/epistemic.py` | `layered` with and without the epistemic term on the same runs, every fault mode, and the novelty each condition produces |
+| `deploy/calibrate_novelty.py` | Sets the in-flight novelty alert on healthy simulated flights through the vehicle's own code, and scores what it catches on held-out flights for several smoothing windows |
 | `deploy/export.py` | The trained model exported to numpy, verified against the torch path to float32 rounding. 224 MB → 28 MB resident |
 | `deploy/runtime.py` | The estimator as it runs on the vehicle: a plain loop, measured intervals, predict-only steps for dropped readings, one log row per step. numpy only |
-| `deploy/mavlink_source.py` | A MAVLink stream as a source for the runtime, via `SCALED_IMU`, requesting it at the filter rate. Written against the API; never run against a link |
-| `deploy/mavlink_sink.py` | The return path: health estimates and NIS to the flight controller as `NAMED_VALUE_FLOAT`, alerts as `STATUSTEXT`. Verified over a UDP loopback |
+| `deploy/mavlink_source.py` | A MAVLink stream as a source for the runtime, via `SCALED_IMU`, requesting it at the filter rate, and the flight controller's `ATTITUDE` to start the filter from. Written against the API; never run against a link |
+| `deploy/mavlink_sink.py` | The return path: health estimates, NIS and per-device novelty to the flight controller as `NAMED_VALUE_FLOAT`, alerts as `STATUSTEXT`. Verified over a UDP loopback |
 | `deploy/pi_main.py` | The companion-computer process: source, estimator, sink and log in one loop, with reconnect. Its self-test runs it against a simulated vehicle over loopback |
 | `deploy/pi/` | The systemd unit and the wiring, parameters and first-log checks for a Raspberry Pi 5 and CubeOrange. Unconfirmed on hardware |
 | `experiments/calibration.py` | Test 1: what a hand-written measurement model is worth when the vehicle differs from its specification |
@@ -501,10 +528,11 @@ python models/bhr/train.py      # heteroscedastic mean and variance
 python models/gp/train.py       # Gaussian process, epistemic uncertainty
 python models/ensemble/train.py # five heteroscedastic models
 
-python models/bhr/laplace.py    # epistemic term, fitted after training
+python models/bhr/laplace.py    # the heteroscedastic model's posterior (test 3)
 
 python robot/make_faulted.py 500  # degraded runs with labelled severity
 python models/health/train.py     # the health-conditioned model
+python models/doubt/laplace.py    # the health model's posterior: layered's epistemic term, row and run-level
 
 python experiments/common.py             # which arms are trained and ready
 python experiments/bakeoff.py            # every arm, one seed set, one ladder
@@ -522,25 +550,31 @@ python experiments/envelope.py           # test 3: does it know what it does not
 python quad_sim/linearity.py    # is the quad map nonlinear enough to matter?
 python quad_sim/make_dataset.py 400
 python quad_sim/train.py        # network against least squares, per channel
+python quad_sim/laplace.py      # the quadcopter model's posterior, for the epistemic term
 python quad_sim/measurement.py  # layered, on a map that is actually curved
+python quad_sim/bakeoff.py      # four arms, one device degraded (--device=mag for the other)
 
 python experiments/reproducibility.py --full   # does a retrain match the saved model?
 python experiments/scatter.py            # why covariance matching loses on the quad
 python experiments/frozen.py             # a three-line detector against a stuck sensor
 
-python deploy/export.py         # weights to numpy, verified against torch
+python experiments/epistemic.py # layered with and without the epistemic term, robot
+python quad_sim/epistemic.py    # the same, quadcopter
+python deploy/export.py         # weights and posterior to numpy, verified against torch
 python deploy/runtime.py        # the vehicle-side loop, on a replayed run
+python deploy/calibrate_novelty.py  # the in-flight novelty alert, set and scored
 python deploy/pi_main.py        # the whole Pi process, against a fake vehicle
 
 python run_tests.py             # every self-test above, in dependency order
 python run_tests.py --all       # including the slow ones
 ```
 
-Fusing the gyro with the encoder difference recovers turn rate to 0.0083
-rad/s, against 0.0477 rad/s from differencing the encoders alone.
-Substituting the learned measurement model for the analytic one leaves
-consistency unchanged and costs roughly 10% on turn-rate accuracy — the mean
-is learned, while trust remains a fixed matrix chosen by hand.
+Fusing the gyro with the encoder difference recovers turn rate to about
+0.009 rad/s (0.0088 with the best constant `R`), against about 0.047 rad/s
+from differencing the encoders alone. Substituting the learned measurement
+model for the analytic one leaves consistency unchanged and costs roughly 3%
+on turn-rate accuracy and 7% on speed — the mean is learned, while trust
+remains a fixed matrix chosen by hand.
 
 Consistency is assessed on both moments, following Chen et al. [12], who
 show that matching the mean alone is insufficient: a filter can be mistuned
@@ -557,8 +591,8 @@ their variances were 1.28, 1.18, and 0.70 where all three should be 1. Both
 encoders were over-trusted and the gyro under-trusted.
 
 That combination is invisible in the mean and plain in the variance. The
-mean is a sum, in which the errors cancel (1.28 + 1.18 + 0.70 = 3.17); the
-variance is quadratic, in which they compound. This is precisely the failure
+mean is a sum, in which the errors cancel (1.28 + 1.18 + 0.70 ≈ 3.17, the
+terms rounded); the variance is quadratic, in which they compound. This is precisely the failure
 mode Chen et al. describe, encountered independently here.
 
 Scaling each channel by its own whitened variance, iterated three times,
@@ -605,6 +639,12 @@ NEES passes on both moments for the first time. Every NEES figure reported
 before this change was grading the process model rather than any measurement
 model, and the earlier full-state figure of 22.49 belongs to that category.
 
+Both columns were measured at the time of the change, with the `R` then in
+use, and the 5-state filter no longer exists to re-run. The 7-state filter
+with today's best constant `R` (`experiments/common.py`, twenty runs) gives a
+speed error of 0.0053 and NEES 2.13 with variance 4.63 — the analytic row of
+the healthy table below, near target on both moments rather than inside it.
+
 NIS remains structurally blind to any state nothing observes — here position
 and heading, which are free to drift while every innovation stays well
 behaved — which is why both are computed. NEES additionally requires the true
@@ -643,16 +683,17 @@ constant covariance available to it.
 
 | | speed, m/s | NIS (want 3 / 6) | NEES (want 2 / 4) |
 |---|---|---|---|
-| analytic + best constant | 0.0052 | 2.52 / 4.31 | 1.81 / 3.37 |
-| plain network | 0.0056 | 2.52 / 4.34 | 1.99 / 4.12 |
-| residual network | 0.0087 | 2.51 / 4.30 | 3.26 / 12.16 |
+| analytic + best constant | 0.0053 | 2.94 / 5.91 | 2.13 / 4.63 |
+| plain network | 0.0056 | 2.95 / 5.94 | 2.33 / 5.63 |
+| residual network | 0.0088 | 2.93 / 5.89 | 3.77 / 15.92 |
 | adaptive covariance | 0.0052 | 2.96 / 6.00 | 2.66 / 8.37 |
 | Gaussian process | 0.0061 | 2.48 / 4.09 | 2.41 / 6.27 |
 | heteroscedastic | 0.0055 | 2.49 / 4.26 | 1.83 / 3.53 |
 | ensemble of five | 0.0053 | 2.44 / 4.10 | 1.70 / 3.07 |
 
-No learned arm beats the analytic model here, and two lose measurably on a
-paired run-by-run comparison. This is the control condition rather than a
+No learned arm beats the analytic model here, and four lose measurably on a
+paired run-by-run comparison (plain, residual, GP, heteroscedastic); only the
+ensemble ties. This is the control condition rather than a
 result: the simulator generates readings from the same equations the analytic
 model uses, so that model is not an approximation of the truth but the truth
 itself, and nothing fitted from data can do better than tie. Every argument
@@ -667,9 +708,9 @@ analytic model was built with, which is the ordinary condition of hardware.
 | 1% | 0.0114 | 0.0066 | 0.0074 |
 | 3% | 0.0309 | 0.0057 | 0.0080 |
 
-The 0% row does not match the healthy table above for the two learned arms
-(0.0063 against 0.0056, 0.0087 against 0.0055). Tests 1–3 predate
-`experiments/bakeoff.py` and each ran on its own seeds, which is the
+The 0% row does not match the healthy table above for any of the three arms
+(0.0052 against 0.0053, 0.0063 against 0.0056, 0.0087 against 0.0055). Tests
+1–3 predate `experiments/bakeoff.py` and each ran on its own seeds, which is the
 stitching problem that file was written to end; their columns are
 comparable within a test and not across tests.
 
@@ -691,8 +732,9 @@ where a single constant is provably optimal, upward.
 | 234% | 8.16 | 6.74 |
 
 Target is 6.0. The constant's second moment degrades by 44% across the sweep
-and the learned covariance by 34%, staying nearer target throughout. The
-effect is real and confined to the second moment; on accuracy the analytic
+and the learned covariance by 34%, staying nearer target from 108% upward
+(the constant is nearer at 0% and 36%). The effect is real and confined to
+the second moment; on accuracy the analytic
 model leads at every level. The homoscedastic row is included because it is
 where the method should fail, and a sweep reported only where it succeeds
 would be a knob turned to suit a conclusion.
@@ -763,9 +805,11 @@ with no ground truth that is the half that survives, since NEES needs a true
 state nobody has.
 
 The clearest evidence that the two mechanisms are complementary rather than
-redundant is a non-event: on every bias condition, `combined` is identical to
-`health` to four decimals and its multiplier sits at its floor. Health absorbs
-the fault and the adaptive layer correctly does nothing.
+redundant is a non-event: on every bias condition `combined`'s mean speed
+error matches `health`'s to four decimals, and its multiplier stays at its
+floor at bias 1.5 and almost entirely at 0.5; at 3.0 it lifts on three of
+eight runs (NIS 1.66 against 1.67). Health absorbs the fault and the adaptive
+layer correctly does almost nothing.
 
 **Does moment order predict faults nobody trained on?**
 `experiments/moments.py` writes the prediction down first, then runs all six
@@ -796,15 +840,20 @@ And four constants become one.
 | severity 3.0 | combined | NIS | layered | NIS |
 |---|---|---|---|---|
 | bias | 0.0162 | 1.66 | 0.0154 | 1.47 |
-| noise inflation | 0.0115 | 3.02 | 0.0097 | 2.58 |
-| drift | 0.0121 | 1.84 | 0.0120 | 1.83 |
-| **scale_error** | 0.2562 | 19.74 | **0.0266** | **2.92** |
+| noise inflation | 0.0115 | 3.02 | 0.0096 | 2.56 |
+| drift | 0.0121 | 1.84 | 0.0119 | 1.83 |
+| **scale_error** | 0.2594 | 13.85 | **0.0259** | **2.90** |
 
-It also fixes the mode that broke the moment-order prediction, and without
-retraining — which points at the covariance rather than at training coverage.
-On `scale_error` the health estimate is driven to about 9 against a training
-ceiling of 3, so `R_model` is badly wrong, and multiplying a wrong covariance
-by a bounded factor leaves it wrong. 1.551 ms against combined's 1.554.
+Same seeds as the bakeoff, from `results/moments.csv`. It also fixes the mode
+that broke the moment-order prediction, and without retraining — which points
+at the covariance rather than at training coverage. On `scale_error` the
+health estimate in `combined` is driven to about 11 against a training ceiling
+of 3, so `R_model` is badly wrong, and multiplying a wrong covariance by a
+bounded factor leaves it wrong; in `layered` the residual absorbs the fault
+first and the entry peaks near 4. Without the epistemic term `layered` cost
+1.551 ms against combined's 1.554; the term adds about a third (+34% over
+health, the layered/health ratio in `results/timing.csv`), about 2.07 ms on
+the same scale.
 
 Combining a learned covariance with online adaptation is an active area, and
 the form of the combination is what distinguishes the published approaches.
@@ -829,9 +878,16 @@ day:
 | analytic | 0.590 | 3% |
 | adaptive | 0.624 | 3% |
 | heteroscedastic | 1.190 | 6% |
-| health / combined / layered | ~1.55 | 8% |
+| health / combined | ~1.55 | 8% |
+| layered, with the epistemic term | ~2.07 | 10% |
 | MMAE, 7 hypotheses | 5.450 | 27% |
 | Gaussian process | 14.550 | 73% |
+
+The `layered` row is derived, not measured with the rest: ~1.55 ms times the
++34% that `layered` with the epistemic term costs over `health` in
+`results/timing.csv`. Only that ratio is taken from the file, whose absolute
+times were measured on battery power with the CPU throttled and are not
+comparable with this table.
 
 MMAE costs 0.779 ms per hypothesis and scales linearly in them; augmenting
 health costs one wider filter regardless of how many fault modes are named,
@@ -883,9 +939,9 @@ Curved map, the network wins by 90%; straight map, it loses by 14% — and that
 study. One experiment, both signs.
 
 In the filter, on the six-flight self-test in `quad_sim/measurement.py`,
-that is 1.156° to 0.521° on *healthy* flights, NIS 12.60 to 8.45 against a
+that is 1.156° to 0.519° on *healthy* flights, NIS 12.60 to 8.43 against a
 target of 9; the eight-flight sweep below, flown on different trajectories,
-gives 0.912° to 0.691° for the same pair. On the robot the healthy column is unwinnable by
+gives 0.912° to 0.677° for the same pair. On the robot the healthy column is unwinnable by
 construction, since the simulator generates readings from the equations the
 analytic model uses. Here the analytic model is exact too and still loses,
 because the filter is what is approximate: a constant `R` cannot cover
@@ -907,8 +963,8 @@ the run. Attitude error over roll and pitch, degrees, accelerometer degraded:
 |---|---|---|---|
 | analytic + best const | 0.912 | 2.229 | 0.991 |
 | adaptive R *(magnitude)* | 0.899 | 2.850 | 1.560 |
-| health-conditioned *(direction)* | **0.709** | **0.941** | **0.806** |
-| layered | 0.691 | 1.031 | 1.098 |
+| health-conditioned *(direction)* | **0.709** | **0.940** | **0.806** |
+| layered | 0.677 | 1.019 | 1.088 |
 
 **On accuracy, the crossing does not survive.** Health wins both columns, and
 adaptive — which moment order says should own the noise fault — is the worst
@@ -918,8 +974,8 @@ arm on it, worse than doing nothing. On calibration it does:
 |---|---|---|
 | analytic | 30.04 | 39.25 |
 | adaptive R | 13.39 | **15.45** |
-| health-conditioned | **10.70** | 32.06 |
-| layered | 8.16 | 10.01 |
+| health-conditioned | **10.69** | 32.06 |
+| layered | 8.13 | 9.99 |
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/img/quad-dark.png">
@@ -929,7 +985,10 @@ arm on it, worse than doing nothing. On calibration it does:
 Health beats adaptive on bias; adaptive beats health on noise, where health's
 32 is exactly the overconfidence `∂h/∂m = 0` predicts — it never widens `R`
 for a fault it cannot see. Layered holds within 14% of target on every
-condition, on both simulators.
+condition on the quadcopter, with either device degraded (NIS 8.13 to 10.19
+against 9). On the ground robot's bias and noise ladder it sits below target
+instead, 1.47 to 2.56 against 3 (`results/bakeoff_layered.csv`):
+under-confident, not over.
 
 Two things separate accuracy from calibration here, and a second run with the
 magnetometer degraded instead — `--device=mag` — was needed to tell them
@@ -947,7 +1006,7 @@ The second is where accuracy starts. On the ground robot the analytic model
 is the truth, so every arm begins level and the accuracy crossing measures
 fault handling and nothing else. Here the learned map begins 22% ahead of the
 analytic model on healthy flights, and a fault that barely touches the scored states leaves that
-lead intact: under magnetometer noise health still wins, 0.716° to 0.912°,
+lead intact: under magnetometer noise health still wins, 0.720° to 0.912°,
 not because it handled the fault better but because nothing moved. **The
 accuracy crossing needs a level healthy baseline, and a nonlinear map does
 not provide one.** Calibration has no such dependency — NIS asks whether the
@@ -991,7 +1050,8 @@ underestimate the posterior covariance — appearing as a bias in a classical
 estimator that consumes that covariance, and it is not specific to Mehra:
 any adaptive method that reads `R` off the innovations inherits it on a
 nonlinear map. The ground robot never showed it because its map is linear and
-the claimed scatter is, if anything, slightly high. Sweeps are in
+the claimed scatter is, if anything, about twice the empirical (median
+empirical/claimed 0.48×). Sweeps are in
 `results/quad_bakeoff.csv`, `results/quad_bakeoff_mag.csv` and
 `results/scatter.csv`.
 
@@ -999,41 +1059,162 @@ the claimed scatter is, if anything, slightly high. Sweeps are in
 they do: `experiments/health_value.py` shows the entry for a degraded sensor
 tracking the severity injected. The quadcopter bakeoff scored accuracy and
 NIS and never asked. `quad_sim/health_readout.py` asks, in the deployed
-configuration, with a fault arriving halfway through the flight; the entry
-should settle near the severity:
+configuration, on eight healthy flights and with a fault arriving halfway
+through others; a working readout stays near zero on the first and settles
+near the severity on the second.
 
-| severity 3 from mid-flight | entry's final value |
-|---|---|
-| accelerometer bias | 0.95 |
-| gyro bias | 0.68 |
-| magnetometer bias | 4.60 |
-| accelerometer noise | 0.05 |
-| gyro noise | 0.10 |
-| magnetometer noise | 2.65 |
-| *healthy flight, worst entry, 3 of 8 flights* | *2.0 to 4.8* |
+An earlier version of this section reported that it does neither: on three
+of eight healthy flights one entry sat above 2 for nearly the whole flight,
+reaching 4.8. That was wrong, and the reason is worth recording because it
+applies to the vehicle. The readout script, alone among the experiments,
+started the filter from zeros rather than from the true first state — level,
+heading 0 — and the three bad flights were exactly the three flying near
+180°. The filter began half a turn out, and while it turned the magnetometer
+disagreed with everything, and the health entries absorbed the disagreement
+and never gave it back. Started from the true state, nothing is above 2:
+
+| healthy flights, highest entry over the flight | started at heading 0 | started from the true state |
+|---|---|---|
+| seed 1, heading +166° | **4.83** | 1.51 |
+| seed 7, heading −167° | **3.49** | 0.64 |
+| seed 8, heading −174° | **3.11** | 0.43 |
+| the other five | 0.50 to 1.47 | 0.33 to 1.20 |
+
+So on the vehicle the filter starts from the flight controller's own
+attitude, read from one `ATTITUDE` message before the first update
+(`deploy/mavlink_source.py`), and says so loudly if it cannot.
+
+With faults, ten seconds after a severity-3 bias arrives mid-flight, the
+matching bias entry reads 0.62 (gyro) to 0.97 (magnetometer, after peaking at
+1.03), nowhere near 3. Noise entries stay near zero under noise faults, as `∂h/∂m = 0` says
+they must; the residual carries those.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/img/health_readout-dark.png">
-  <img alt="Final health-entry values against injected severity for each quadcopter device, far from the diagonal a working readout would follow: accelerometer and gyro entries stay low under faults, magnetometer entries are high even on healthy flights." src="figures/img/health_readout-light.png">
+  <img alt="Two panels. Top: for the same eight healthy quadcopter flights, ordered by starting heading, the highest health entry when the filter starts from the true first state, all below 2 with the highest at 1.51, paired with the same flight started from zeros at heading 0, where the three flights starting near 180 degrees reach 3.11 to 4.83. Bottom: for the accelerometer, gyroscope and magnetometer, the matching bias and noise entries ten seconds after a mid-flight fault of severity 2 and 3, against a diagonal marking a settled readout; bias entries read 0.44 to 0.97 and noise entries 0.01 to 0.16." src="figures/img/health_readout-light.png">
 </picture>
 
-They do not. Accelerometer and gyro faults barely move their entries, the
-magnetometer's entries respond to faults and equally to nothing, and on three
-of eight healthy flights one entry sits above 2 for nearly the whole flight.
-The entries earn their place by improving accuracy — the bakeoff table above
-stands — but what they absorb on this vehicle is measurement-map error as
-much as sensor fault, and the entry's value does not say which. The likely
-reason is visible in the linearity table: the network's residual on the
-magnetometer channels, 0.027, is 1.5× that device's healthy noise, so the
-filter has a severity-1.5-sized discrepancy to explain on every healthy
-flight and a bias entry that will explain it. On the robot the map is linear,
-the residual sits at the noise floor, and there is nothing to absorb. That is
-a hypothesis; what is established is the table.
+Ten seconds does not separate a wrong answer from a slow one. The robot's
+trace above shows a mid-run bias entry still climbing at 32 seconds, and the
+readout should be rerun with faults present from the start, as the robot's
+was, before the quadcopter's entries are called severities or not. Until
+then `deploy/pi_main.py` reports them as named values and does not alarm on
+them: an alert at 2 would not fire on a healthy flight, and would not fire in
+time on a faulted one.
 
-The consequence for deployment is concrete. `deploy/pi_main.py` reports the
-entries as named values and does not alarm on them for the quadcopter, and
-the robot's health-tracking result should not be read as transferring to a
-nonlinear map without this check.
+### The epistemic term, and what it is for
+
+`layered` sums three covariances, and until now every published number ran
+without the second. It is on by default now, on both vehicles and on the
+vehicle-side runtime, from one numpy implementation
+(`models/layered/epistemic.py`) that the simulators and the Pi share.
+
+**As first fitted, it did nothing.** With the last-layer Laplace posterior as
+`models/bhr/laplace.py` fits it, the term was 0.01% to 0.35% of the learned
+noise, and switching it on moved no published number: the largest paired
+change in error was 0.42% on the robot and 0.10% on the quadcopter. That is
+not a bug. Averaged over the training rows the term's share is exactly
+`p_eff / N`, the posterior's effective parameter count over the rows it was
+fitted on — 57.8 / 402,000 on the robot and about 120 / 325,000 on the
+quadcopter — and three independent checks confirmed the scaling: a Monte Carlo
+over the posterior to within 1.6%, refits on subsets showing it shrink as
+about N^−0.9, and the numpy and torch paths agreeing per element to 6e-6.
+This is the regime Acharya, Russell and Ahmed [30] identify, from the same
+lab: epistemic uncertainty is the reducible kind, and they had to cut their
+training data tenfold to make it large enough to study.
+
+**But the rows are not independent.** Each run is a thousand rows at 50 Hz
+that share things the model is not told — a gyro bias drawn once per run, the
+trajectory's slow errors — so counting rows overstates what the data pins
+down. The checks measured an intraclass correlation of 0.12 on the robot's
+gyro residual and 0.5 on the quadcopter's. Taking runs rather than rows as
+the unit, with the cluster-robust sandwich covariance [31, 32], keeps
+Laplace's centre and widens its spread by 5–6× on the robot's encoders, 25×
+on its gyro, 14–17× on the quadcopter's accelerometer, 10–15× on its
+magnetometer and 110× on its gyro. That is the posterior `layered` now uses.
+
+| `layered` with the term, against without | robot | quadcopter |
+|---|---|---|
+| share of the learned noise, healthy, all channels | 0.15% | 2.05% |
+| share of the learned noise, out of the training envelope | 1.1% (`stuck`) | 20% (rates 2× training) |
+| change in error, all conditions | −0.05% mean; single runs −3.5% to +1.0% | −0.89% mean; better in all 23 |
+| change in NIS, 2× training rates | — | 14.88 → 14.27 |
+| cost per filter step | +34% (against `health`, which matched `layered` without it) | +34% to +56% on the numpy runtime, paired runs, depending on machine load |
+
+On the robot it changes nothing; on the quadcopter it is a small, consistent
+gain in error, largest on magnetometer `scale_error` (−2.1%), with −1.3% at 2×
+training rates, and its largest effect on calibration is out of the envelope
+(NIS 14.88 → 14.27 at 2× rates, where no other condition moves by more than
+0.05). `experiments/epistemic.py` and `quad_sim/epistemic.py` run the paired
+comparison; `results/epistemic.csv` and `results/quad_epistemic.csv` hold
+every run.
+
+**Its real job is to say when the model is out of its depth.** The term
+computes, on the way, how unfamiliar the model's inputs are — leverage over
+its training average, 1 on ordinary inputs — and that ratio does not depend
+on the variance head at all. On the robot it singles out two of the four
+faults the model was not trained on, `scale_error` and `stuck`. The other two
+do not stand out: untrained `drift` reads lower than trained bias at the edge
+of training, and `dropout` is indistinguishable from healthy.
+
+| robot, mean novelty over the run | |
+|---|---|
+| healthy, noise 3.0, dropout | 1.09 to 1.19 |
+| `drift` 3.0, never trained on | 1.73 |
+| bias 3.0, at the edge of training | 2.96 |
+| `scale_error` 3.0, never trained on | **4.05** |
+| `stuck` 0.5, never trained on | **3.99** |
+
+The vehicle reports it per device as `nov_accel`, `nov_gyro` and `nov_mag`,
+geometric-smoothed, and alerts above a level set on twenty healthy simulated
+flights at 1.5× the highest they reached. `deploy/calibrate_novelty.py`
+chooses the smoothing window by what it catches on flights the level was not
+set on, with no false alarm allowed:
+
+| alert, flights caught of 8 | robot, 5 s window | quadcopter, 2 s window |
+|---|---|---|
+| healthy (every alert false) | 0 | 0 |
+| `stuck` | **8** | 0 |
+| `scale_error` | **8** | 2 (magnetometer) |
+| bias 3.0 | 4 | 0 |
+| `drift` 3.0 | 1 | 0 |
+| `dropout` 0.5 | 0 | 0 |
+| body rates 2× training | — | **6** |
+
+On the robot the monitor catches, on every run, `stuck` — outside the
+moment-order taxonomy, and handled well by no arm — and `scale_error`, a
+first-moment fault that was never trained on. It does not catch the other
+fault outside the taxonomy, `dropout`. On the quadcopter it is an envelope
+monitor: it sees the vehicle flying somewhere the model was not trained, and
+little else.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/img/epistemic-dark.png">
+  <img alt="The epistemic term's novelty ratio by condition on both vehicles, with the healthy range marked, and what the calibrated in-flight alert catches on held-out flights." src="figures/img/epistemic-light.png">
+</picture>
+
+**It found a defect on the way.** The first calibration of the quadcopter's
+level failed: healthy flights reached a one-second novelty of 28 on the
+accelerometer and 35 on the magnetometer, which set the levels so high that
+almost nothing else crossed them. One of those healthy flights had yaw
+reaching −4.22 rad, outside the training data's −3.63 to 3.99: the model took
+yaw as a raw angle, and the filter's yaw keeps counting past a half turn,
+while its sigma points reach further still. The novelty was right — the
+model was being asked about inputs it had never seen. Yaw is now wrapped
+into (−π, π] before the network sees it, which is exact since the readings
+depend on heading only through its sine and cosine, and at the same
+one-second window the highest healthy novelty fell from 28 to 15 on the
+accelerometer and from 35 to 11 on the magnetometer. A real flight of a few
+minutes would turn past a half circle many times; without the wrap the model
+would have been extrapolating for most of it.
+
+Two guards come with the term. The variance head extrapolates badly — push a
+noise input to 20 and the predicted variance runs to its ceiling, about 10^8
+times its healthy value — and the term goes as its square, so the variance it is
+scaled by is taken with the health inputs held to the training range while
+the leverage is taken at the real input. And the vehicle-side runtime keeps
+no per-step history, which in the simulation arms grows by over 100 MB an
+hour.
 
 ### What is still open
 
@@ -1046,7 +1227,7 @@ readings beats the learned machinery, and `experiments/frozen.py` answers it:
 |---|---|---|
 | analytic | 0.2212 | — |
 | analytic + three-line detector | **0.0077** | **−97%** |
-| layered | 0.1806 | −18% |
+| layered | 0.1810 | −18% |
 | layered + detector | 0.0086 | −96% |
 
 <picture>
@@ -1068,16 +1249,16 @@ steps — half a second — the detector still catches 100% of the frozen
 stretch, false alarms fall to 2.5 per run, the healthy-run cost disappears
 (0.0052, the analytic figure), and the worst-case error is 0.0086 against
 0.0077 at five steps. Both windows are in `results/frozen.csv` and
-`results/frozen_w25.csv`. `dropout` costs every arm about 1.3× its healthy
+`results/frozen_w25.csv`. `dropout` costs every arm 1.3–1.4× its healthy
 error and does not need solving.
 
 Nothing here detects when the posterior stops being approximately Gaussian,
 and degraded sensors are exactly where that is least safe.
 
-A fault arriving mid-run still costs `combined` about half again over the same
-fault present from the start, after retraining on transitions brought it down
-from 94%. The figure at the top shows the mechanism behind that for `layered`:
-`experiments/trace.py` lets a severity-3 bias arrive at 8 s in 40 s runs, and
+A fault arriving mid-run still costs `combined` about half again (48%) over
+the same fault present from the start, and `health` 58%, after retraining on
+transitions brought the health model down from 94%. The figure at the top
+shows the mechanism behind that for `layered`: `experiments/trace.py` lets a severity-3 bias arrive at 8 s in 40 s runs, and
 the health estimate is still climbing at the end, a median of 1.91 against 3.
 Over the last 12 s `layered` beats the analytic model on 6 of 8 seeds, but on
 seed 2004 the estimate stalls near 1 and `layered` ends worse than doing
@@ -1086,11 +1267,18 @@ noise fault shows none of this: on every seed the residual settles between
 84% and 109% of the injected variance, median 95%, and passes 85% of it
 between 6 and 11 s after onset.
 
-On the quadcopter the health entries improve the estimate without reading as
-severities. Whether that is the map's residual error being absorbed, as
-suggested above, and whether a better-fit map or a stronger prior on the
-entries would restore the readout, is untested. Until it is, the health
+On the quadcopter, whether the health entries read as severities at all is
+open. Started correctly they stay below 2 on healthy flights (highest 1.51),
+though on one flight an entry sits above 1 for most of it; and ten seconds
+after a mid-flight fault is too soon to say whether they will settle at the
+severity. Until a run with faults from the start answers it, the health
 arm's diagnostic claim holds on the linear vehicle only.
+
+The novelty monitor's alert levels come from simulated healthy flights, and a
+real vehicle is the first thing it has not seen. On the first flights it
+measures the sim-to-real gap rather than detecting faults, and the levels
+should be recalibrated from those logs before an alert is treated as a
+warning.
 
 And none of it has touched hardware, real logs, or SITL. The companion
 computer process in `deploy/` has run against a simulated vehicle over a
@@ -1235,6 +1423,18 @@ Bounded Possibilistic Framework for Ordinal State Estimation," 2025.
 [29] M. K. Jah, "The Epistemic Support-Point Filter: Jaynesian Maximum Entropy
 Meets Popperian Falsification," 2026.
 [arXiv:2603.10065](https://arxiv.org/abs/2603.10065)
+
+[30] A. Acharya, R. Russell, and N. R. Ahmed, "Learning to Forecast Aleatoric
+and Epistemic Uncertainties over Long Horizon Trajectories," 2023.
+[arXiv:2302.08669](https://arxiv.org/abs/2302.08669)
+
+[31] H. White, "Maximum Likelihood Estimation of Misspecified Models,"
+*Econometrica*, vol. 50, no. 1, pp. 1–25, 1982.
+[doi:10.2307/1912526](https://doi.org/10.2307/1912526)
+
+[32] K.-Y. Liang and S. L. Zeger, "Longitudinal Data Analysis Using
+Generalized Linear Models," *Biometrika*, vol. 73, no. 1, pp. 13–22, 1986.
+[doi:10.1093/biomet/73.1.13](https://doi.org/10.1093/biomet/73.1.13)
 
 ## Status
 
