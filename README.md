@@ -1280,6 +1280,49 @@ measures the sim-to-real gap rather than detecting faults, and the levels
 should be recalibrated from those logs before an alert is treated as a
 warning.
 
+Retraining on flight data is the obvious way to close that gap, and it has a
+trap in it. A real flight carries no true state and no true health, so the
+only labels on offer are the filter's own estimates or the flight
+controller's, and a model refitted to its own estimates can learn its own
+mistakes — the identifiability problem of estimating a model and the state it
+explains from the same data. Work from this lab bears on it from three sides
+without settling it for this case.
+
+Lee, Ahmed and Russell [6] train a learned filter component from the
+innovations alone, so the label is the next real measurement and never the
+filter's state estimate, and they restrict what is learned to the parts of the
+model most likely to be wrong, around a physics-based nominal one. But they
+assume the measurement model is known and leave learning it to future work,
+which is this project's case and the one where the trap is deepest. Their
+results also carry a warning for any check built on innovations alone: on real
+drone data a fixed-noise filter put 92.7% of its NIS values inside the 95%
+interval and only 60.1% of its NEES values.
+
+Ahmed et al. [33] and Muesing et al. [34] estimate a sensor's unknown
+reliability jointly with what it measures, without calibration data, by
+carrying a posterior over the sensor's parameters instead of a point
+estimate, so an early error stays uncertain rather than becoming the label for
+the next fit. Shin et al. [38] do the same for sources in decentralised
+fusion. Their sensors are human reporters or fused estimates described by a
+handful of parameters, not a network, but the principle carries over, and the
+last-layer posterior here is a step toward it.
+
+On checking a refit without ground truth, Chen et al. show that common tuning
+measures need not have a unique answer [35], and that a χ² consistency test
+is not sufficient to show a filter is tuned, since the statistic is
+χ²-distributed only when it is, so their cost penalises the whole distribution
+[12]. Conlon et al. [36] and Ratheesh et al. [37] score how surprising real
+observations are under a model's predictions, which is the natural gate for
+whether a flight should be learned from at all.
+
+Together they suggest a shape, not yet tried here: refit on innovations rather
+than on estimated states, keep the posterior rather than collapsing it, and
+accept a refit only if its NIS on held-out flights matches the χ²
+distribution and not merely its mean. Health is what none of them supplies.
+Innovations do not say which sensor degraded or by how much, so a refit from
+flight data can teach the healthy map and must leave the degraded ones to
+simulation or to faults injected on purpose.
+
 And none of it has touched hardware, real logs, or SITL. The companion
 computer process in `deploy/` has run against a simulated vehicle over a
 loopback and nothing else.
@@ -1321,6 +1364,23 @@ Aerospace and Electronic Systems*, vol. 36, no. 2, pp. 393–406, 2000.
 [22] F. Ben Hmida, K. Khemiri, J. Ragot, and M. Gossa, "Three-stage Kalman
 Filter for State and Fault Estimation of Linear Stochastic Systems with
 Unknown Inputs," *Journal of the Franklin Institute*, vol. 349, no. 7, 2012.
+
+[33] N. R. Ahmed, M. Campbell, D. Casbeer, Y. Cao, and D. Kingston, "Fully
+Bayesian Learning and Spatial Reasoning with Flexible Human Sensor Networks,"
+*Proceedings of the ACM/IEEE Sixth International Conference on Cyber-Physical
+Systems*, pp. 80–89, 2015.
+[doi:10.1145/2735960.2735970](https://doi.org/10.1145/2735960.2735970)
+
+[34] J. Muesing, N. R. Ahmed, L. Burks, M. Iuzzolino, and D. Albers Szafir,
+"Fully Bayesian Human–Machine Data Fusion for Robust Online Dynamic Target
+Characterization," *Journal of Aerospace Information Systems*, vol. 18,
+no. 2, pp. 26–49, 2021.
+[doi:10.2514/1.I010832](https://doi.org/10.2514/1.I010832)
+
+[38] C. Shin, O. Dagan, N. Ahmed, and H.-L. Choi, "Fault-tolerant Bayesian
+Decentralized Data Fusion Using Reliability Variables and Mixture Models,"
+*27th International Conference on Information Fusion*, pp. 1–8, 2024.
+[doi:10.23919/FUSION59988.2024.10706522](https://doi.org/10.23919/FUSION59988.2024.10706522)
 
 **Learned measurement models in filtering**
 
@@ -1402,6 +1462,11 @@ Transactions on Aerospace and Electronic Systems*, vol. 60, no. 2,
 pp. 2236–2250, 2024.
 [doi:10.1109/TAES.2024.3350587](https://doi.org/10.1109/taes.2024.3350587)
 
+[35] Z. Chen, C. Heckman, S. Julier, and N. Ahmed, "Time Dependence in Kalman
+Filter Tuning," *24th International Conference on Information Fusion*,
+pp. 1–8, 2021.
+[doi:10.23919/FUSION49465.2021.9626864](https://doi.org/10.23919/FUSION49465.2021.9626864)
+
 [17] K. J. DeMars, R. H. Bishop, and M. K. Jah, "Entropy-Based Approach for
 Uncertainty Propagation of Nonlinear Dynamical Systems," *Journal of
 Guidance, Control, and Dynamics*, vol. 36, no. 4, pp. 1047–1057, 2013.
@@ -1411,6 +1476,16 @@ Guidance, Control, and Dynamics*, vol. 36, no. 4, pp. 1047–1057, 2013.
 B. M. Argrow, "'A Good Bot Always Knows Its Limitations': Assessing Autonomous
 System Decision-making Competencies through Factorized Machine
 Self-confidence," 2024. [arXiv:2407.19631](https://arxiv.org/abs/2407.19631)
+
+[36] N. Conlon, N. Ahmed, and D. Szafir, "Event-triggered Robot
+Self-assessment to Aid in Autonomy Adjustment," *Frontiers in Robotics and
+AI*, vol. 10, 1294533, 2024.
+[doi:10.3389/frobt.2023.1294533](https://doi.org/10.3389/frobt.2023.1294533)
+
+[37] A. Ratheesh, O. Dagan, N. R. Ahmed, N. Bosanac, and J. W. McMahon, "Using
+Surprise Index for Competency Assessment in Autonomous Decision-Making,"
+*AIAA SciTech 2024 Forum*, 2024.
+[doi:10.2514/6.2024-1206](https://doi.org/10.2514/6.2024-1206)
 
 [27] S. Jiang, J. Shi, and S. Moura, "Mitigating Overconfidence in Nonlinear
 Kalman Filters via Covariance Recalibration," *Automatica*, accepted.
