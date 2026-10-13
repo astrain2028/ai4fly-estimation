@@ -59,6 +59,7 @@ TESTS = [
     "deploy/runtime.py",
     "deploy/mavlink_source.py",
     "deploy/mavlink_sink.py",
+    "deploy/integrity.py",
     "deploy/pi_main.py",
 ]
 
@@ -90,6 +91,7 @@ SLOW = [
     "experiments/epistemic.py",
     "quad_sim/epistemic.py",
     "deploy/calibrate_novelty.py",
+    "deploy/check_integrity.py",
     "quad_sim/linearity.py",
     "quad_sim/make_dataset.py",
     "quad_sim/train.py",

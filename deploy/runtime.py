@@ -41,10 +41,17 @@ What is logged
 --------------
 
 One row per step: timestamp, measured interval, whether an update happened,
-the full state estimate, the diagonal of its covariance, the innovation, and
-NIS. That is what NIS-based self-assessment needs, and NIS is the only
-self-assessment available on hardware, since NEES needs a true state nobody
-has in flight.
+the raw reading, the full state estimate, the diagonal of its covariance,
+the innovation, NIS, the novelty ratio, and the three terms of the
+measurement noise. That is what NIS-based self-assessment needs, and NIS is
+the only self-assessment available on hardware, since NEES needs a true
+state nobody has in flight. The raw reading is there so a real flight can be
+replayed through the estimator afterwards with faults injected into it.
+
+**A reading that is not finite is refused.** One NaN in an update puts a NaN
+in the state, and the filter never recovers from it. The step is
+predict-only, flagged ``rejected``, and deploy/integrity.py, which sees the
+raw reading, decides what the refusal means.
 
 Vehicle
 -------
@@ -149,6 +156,16 @@ class Estimator:
         if dt <= 0.0:
             dt = self.dt_nominal      # a repeated or reversed timestamp
 
+        # A reading with a NaN or an infinity in it would put one in the
+        # state, and from there in every later estimate: the filter has no
+        # way back from a non-finite mean. It is refused and the step is
+        # predict-only, as for a gap. deploy/integrity.py sees the raw
+        # reading and decides what the refusal means.
+        raw = None if reading is None else np.asarray(reading, dtype=float)
+        rejected = raw is not None and not np.all(np.isfinite(raw))
+        if rejected:
+            reading = None
+
         started = time.perf_counter()
         self.cov = 0.5 * (self.cov + self.cov.T)
         repaired = 0
@@ -179,19 +196,27 @@ class Estimator:
         # The epistemic term's novelty ratio per channel, if the measurement
         # model carries one: 1 on inputs like the training data.
         doubt = getattr(self.measure, "doubt", None)
+        # And the three terms of the measurement noise this step used --
+        # aleatoric, epistemic, unmodelled -- which is how a log tells a
+        # sensor going bad from a model out of its depth.
+        parts = getattr(self.measure, "last_parts", None)
 
         return {
             "time": float(timestamp),
             "dt": dt,
             "updated": reading is not None,
+            "rejected": bool(rejected),
             "irregular": bool(irregular),
             "repaired": repaired,
             "ms": 1000.0 * elapsed,
+            "reading": raw,
             "mean": self.mean.copy(),
             "var": np.diag(self.cov).copy(),
             "innovation": innovation,
             "nis": nis,
             "doubt": None if doubt is None else np.array(doubt, dtype=float),
+            "parts": (None if parts is None or reading is None
+                      else tuple(np.array(p, dtype=float) for p in parts[:3])),
         }
 
 
@@ -213,30 +238,57 @@ def run(source, estimator, log_path, state_names, channel_names):
     return rows
 
 
+PART_NAMES = ("ale", "epi", "unm")      # aleatoric, epistemic, unmodelled
+
+
 def log_header(state_names, channel_names):
-    """Column names for one log row, shared with deploy/pi_main.py."""
-    return (["time", "dt", "updated", "irregular", "repaired", "ms"]
+    """Column names for one log row, shared with deploy/pi_main.py.
+
+    The raw reading is logged so a flight can be replayed through the
+    estimator later, with faults injected into real data; the three noise
+    terms so a sensor going bad can be told from a model out of its depth;
+    the integrity columns are filled by deploy/pi_main.py and empty in a
+    plain replay.
+    """
+    return (["time", "dt", "updated", "rejected", "irregular", "repaired",
+             "ms"]
+            + ["read_%s" % c for c in channel_names]
             + list(state_names)
             + ["var_%s" % s for s in state_names]
             + ["innov_%s" % c for c in channel_names]
             + ["nis"]
-            + ["doubt_%s" % c for c in channel_names])
+            + ["doubt_%s" % c for c in channel_names]
+            + ["%s_%s" % (p, c) for p in PART_NAMES for c in channel_names]
+            + ["integrity", "failed", "suspect", "integrity_reason"])
+
+
+def _cells(values, n, fmt):
+    if values is None:
+        return [""] * n
+    return [fmt % v for v in values]
 
 
 def log_row(record, channel_names):
     """One estimator record as the strings that go in its log row."""
-    innov = (record["innovation"] if record["innovation"] is not None
-             else [""] * len(channel_names))
-    doubt = record.get("doubt")
-    doubt = [""] * len(channel_names) if doubt is None else doubt
+    n = len(channel_names)
+    parts = record.get("parts") or (None,) * len(PART_NAMES)
+    status = record.get("integrity")
+    integrity = ([status["level"],
+                  "|".join("%s:%s" % kv for kv in sorted(status["failed"].items())),
+                  "|".join("%s:%s" % kv for kv in sorted(status["suspect"].items())),
+                  status["reason"]]
+                 if status is not None else [""] * 4)
     return ([record["time"], "%.6f" % record["dt"], int(record["updated"]),
-             int(record["irregular"]), record["repaired"],
-             "%.4f" % record["ms"]]
+             int(record.get("rejected", False)), int(record["irregular"]),
+             record["repaired"], "%.4f" % record["ms"]]
+            + _cells(record.get("reading"), n, "%.6g")
             + ["%.6g" % v for v in record["mean"]]
             + ["%.6g" % v for v in record["var"]]
-            + ["%.6g" % v if v != "" else "" for v in innov]
+            + _cells(record["innovation"], n, "%.6g")
             + ["%.4f" % record["nis"] if record["nis"] is not None else ""]
-            + ["%.4g" % v if v != "" else "" for v in doubt])
+            + _cells(record.get("doubt"), n, "%.4g")
+            + [cell for part in parts for cell in _cells(part, n, "%.4g")]
+            + integrity)
 
 
 def replay(readings, dt, seed=0, drop_fraction=0.0, jitter_fraction=0.0):

@@ -471,10 +471,12 @@ comparison is empirical.
 | `experiments/epistemic.py`, `quad_sim/epistemic.py` | `layered` with and without the epistemic term on the same runs, every fault mode, and the novelty each condition produces |
 | `deploy/calibrate_novelty.py` | Sets the in-flight novelty alert on healthy simulated flights through the vehicle's own code, and scores what it catches on held-out flights for several smoothing windows |
 | `deploy/export.py` | The trained model exported to numpy, verified against the torch path to float32 rounding. 224 MB → 28 MB resident |
-| `deploy/runtime.py` | The estimator as it runs on the vehicle: a plain loop, measured intervals, predict-only steps for dropped readings, one log row per step. numpy only |
-| `deploy/mavlink_source.py` | A MAVLink stream as a source for the runtime, via `SCALED_IMU`, requesting it at the filter rate, and the flight controller's `ATTITUDE` to start the filter from. Written against the API; never run against a link |
-| `deploy/mavlink_sink.py` | The return path: health estimates, NIS and per-device novelty to the flight controller as `NAMED_VALUE_FLOAT`, alerts as `STATUSTEXT`. Verified over a UDP loopback |
-| `deploy/pi_main.py` | The companion-computer process: source, estimator, sink and log in one loop, with reconnect. Its self-test runs it against a simulated vehicle over loopback |
+| `deploy/runtime.py` | The estimator as it runs on the vehicle: a plain loop, measured intervals, predict-only steps for dropped readings and refused non-finite ones, one log row per step with the raw reading and the three noise terms. numpy only |
+| `deploy/mavlink_source.py` | A MAVLink stream as a source for the runtime, via `SCALED_IMU`, requesting it at the filter rate, the flight controller's `ATTITUDE` to start the filter from, and its heartbeat — armed, flying, mode — for the return-home request. Survives a flight-controller reboot. Written against the API; never run against a link |
+| `deploy/mavlink_sink.py` | The return path: health estimates, NIS, per-device novelty and the estimate's integrity to the flight controller as `NAMED_VALUE_FLOAT`, alerts as `STATUSTEXT`, and — only with `--allow-rtl` — a request for RTL when every sensor has failed. Verified over a UDP loopback |
+| `deploy/integrity.py` | Whether the estimate can be used at all: a device has *failed* when its readings carry no information — frozen, non-finite, impossible — judged without the model; the estimate is invalid when every device has failed or the stream has stopped. Model-based signals only mark a device *suspect* |
+| `deploy/check_integrity.py` | The monitor on simulated flights in which every sensor fails, and on those in which it must not fire: healthy, aggressive, one or two devices failed, every device ten times noisier |
+| `deploy/pi_main.py` | The companion-computer process: source, estimator, integrity monitor, sink and log in one loop, with reconnect. Its self-test runs it against a simulated vehicle over loopback, healthy and with every sensor frozen |
 | `deploy/pi/` | The systemd unit and the wiring, parameters and first-log checks for a Raspberry Pi 5 and CubeOrange. Unconfirmed on hardware |
 | `experiments/calibration.py` | Test 1: what a hand-written measurement model is worth when the vehicle differs from its specification |
 | `experiments/heteroscedasticity.py` | Test 2: when a state-dependent covariance starts earning its cost, swept from homoscedastic upward |
@@ -563,6 +565,7 @@ python quad_sim/epistemic.py    # the same, quadcopter
 python deploy/export.py         # weights and posterior to numpy, verified against torch
 python deploy/runtime.py        # the vehicle-side loop, on a replayed run
 python deploy/calibrate_novelty.py  # the in-flight novelty alert, set and scored
+python deploy/check_integrity.py    # every sensor failing: caught, and only then
 python deploy/pi_main.py        # the whole Pi process, against a fake vehicle
 
 python run_tests.py             # every self-test above, in dependency order
@@ -1215,6 +1218,62 @@ scaled by is taken with the health inputs held to the training range while
 the leverage is taken at the real input. And the vehicle-side runtime keeps
 no per-step history, which in the simulation arms grows by over 100 MB an
 hour.
+
+### When every sensor fails
+
+Everything above assumes a healthy majority: health states find a broken
+sensor because the others outvote it. When every sensor has failed there is
+no majority, and the filter does not stop — it keeps producing an attitude
+and a covariance from readings that carry no information. So the decision
+that the estimate cannot be used is taken outside the filter, by
+`deploy/integrity.py`, and taken without the model: a device has *failed*
+only when its readings are frozen, non-finite, impossible, or a field that
+is not there. The learned signals — novelty, the residual term, health past
+its training range — only mark a device *suspect*, because on the first real
+flights they are expected to be high everywhere, and the gap between the
+simulator and the vehicle must not be what sends it home.
+
+The estimate is invalid when every device has failed for a second, the
+readings have stopped for two, or the estimate itself has gone non-finite.
+`deploy/check_integrity.py` runs the vehicle's own code over simulated
+flights with the failure arriving halfway (`results/integrity.csv`):
+
+| | flights | invalid | after |
+|---|---|---|---|
+| every device frozen | 8 | **8** | 1.46 s |
+| every device dead (reading zero) | 8 | **8** | 1.48 s |
+| every device returning NaN | 8 | **8** | 1.08 s |
+| no readings at all | 8 | **8** | 1.98 s |
+| healthy, and at 1.5× and 2× training rates | 24 | 0 | |
+| one device failed: frozen, dead, NaN, bias, noise or scale, each device | 144 | 0 | |
+| two devices frozen or dead, each pair | 48 | 0 | |
+| every device ten times noisier | 8 | 0 | |
+
+One or two failed devices are reported as degraded on every such flight and
+never as invalid; bias, noise and scale faults are not reported as failures
+at all, since the readings still carry information and handling them is the
+filter's job. One device returning NaN is degraded and never invalid, but
+it costs more than it should: the runtime refuses a whole reading with a NaN
+in it, so the estimate coasts until the device recovers. Over MAVLink it
+cannot happen, since `SCALED_IMU` carries integers; a direct sensor driver
+must hand over no reading rather than a NaN. Of the model's own signals,
+none marks a device on healthy flights; at 1.5 and 2 times the training
+rates they mark one on two and on all eight, which is what they are for and
+why they decide nothing.
+
+With `--allow-rtl`, off by default, `deploy/pi_main.py` asks the flight
+controller for RTL when the estimate becomes invalid — only of its own
+ArduCopter, by MAVLink system id, only when armed and in the air by the
+vehicle's own landed state, never over an RTL or landing already under way,
+three tries at most, once per flight, and never again once the pilot has
+taken RTL back, across reconnects included. It is the one place the
+companion computer reaches past advising, and it asks rather than commands:
+ArduPilot flies on three IMUs where the Pi sees one, refuses RTL without a
+position estimate, and lands on its own EKF failsafe. The loopback
+self-test shows the request made exactly once, over the same udpin link
+the SITL procedure uses, on a flight whose sensors all freeze, and never on
+a healthy one; it has not been tried in ArduPilot SITL, and must be before
+it is enabled on a vehicle (`deploy/pi/README.md`).
 
 ### What is still open
 
