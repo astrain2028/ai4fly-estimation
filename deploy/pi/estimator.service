@@ -1,14 +1,18 @@
 # systemd unit for the companion-computer estimator.
 #
-# Install on the Raspberry Pi:
+# Install on the Raspberry Pi, from the repository, as the user who will run
+# it. Raspberry Pi OS has had no default "pi" user since 2022, so the user
+# and home directory below are filled in rather than assumed:
 #
-#     sudo cp deploy/pi/estimator.service /etc/systemd/system/
+#     sed "s#/home/pi#$HOME#g; s#^User=pi#User=$USER#" deploy/pi/estimator.service \
+#         | sudo tee /etc/systemd/system/estimator.service
 #     sudo systemctl daemon-reload
 #     sudo systemctl enable --now estimator
 #     journalctl -u estimator -f
 #
-# Assumes the repository is checked out at /home/pi/ai4fly-estimation and the
-# flight controller's TELEM2 port is wired to the Pi's primary UART. See
+# Assumes the repository is checked out at ~/ai4fly-estimation, the Python
+# environment from deploy/pi/README.md is at ~/ai4fly-venv, and the flight
+# controller's TELEM2 port is wired to the Pi's primary UART. See
 # deploy/pi/README.md for the wiring, the ArduPilot parameters that enable
 # MAVLink on that port, and how to confirm the link before enabling this.
 
@@ -21,7 +25,12 @@ StartLimitIntervalSec=0
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/ai4fly-estimation
-ExecStart=/usr/bin/python3 deploy/pi_main.py --link /dev/serial0:921600 --vehicle quadcopter
+# A log runs to about 140 MB an hour at 50 Hz. Each start compresses the
+# logs earlier runs left -- about a third the size, and pandas reads .csv.gz
+# as it reads .csv -- so a card fills in hundreds of hours, not tens. The
+# leading "-" lets the service start even if there is nothing to compress.
+ExecStartPre=-/bin/sh -c 'find deploy/logs -maxdepth 1 -name "*.csv" -exec gzip -f {} +'
+ExecStart=/home/pi/ai4fly-venv/bin/python deploy/pi_main.py --link /dev/serial0:921600 --vehicle quadcopter
 Restart=always
 RestartSec=3
 # pi_main reconnects on a dropped link itself; Restart covers a crash.

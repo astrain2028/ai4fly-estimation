@@ -39,10 +39,16 @@ measure it there with `deploy/runtime.py` before trusting the margin.
 
 ## Software on the Pi
 
-    sudo apt install python3-numpy python3-pandas
-    pip3 install pymavlink pyserial
-    sudo usermod -aG dialout pi          # the serial port, for User=pi
+    sudo apt install python3-numpy python3-pandas python3-venv
+    python3 -m venv --system-site-packages ~/ai4fly-venv
+    ~/ai4fly-venv/bin/pip install pymavlink pyserial
+    sudo usermod -aG dialout $USER       # the serial port; log in again after
     git clone <this repository> ~/ai4fly-estimation
+
+Raspberry Pi OS (Bookworm and later) refuses `pip install` into the system
+Python, so pymavlink goes into a virtual environment that still sees the
+system's numpy and pandas. Run the process with `~/ai4fly-venv/bin/python`,
+as the service does; plain `python3` will not find pymavlink.
 
 The trained weights are not in the repository. On a machine with torch, fit
 the model's last-layer posterior -- the epistemic term needs it -- then
@@ -51,7 +57,7 @@ posterior) to the same path on the Pi:
 
     python quad_sim/laplace.py         # on the training machine
     python deploy/export.py
-    scp deploy/weights/quad.npz pi@<host>:ai4fly-estimation/deploy/weights/
+    scp deploy/weights/quad.npz <user>@<host>:ai4fly-estimation/deploy/weights/
 
 Nothing on the Pi needs torch. If the posterior is missing from the export,
 the process says so on startup and runs without the epistemic term.
@@ -81,7 +87,7 @@ can stay at their defaults.
 
 ## Confirming the link before enabling the service
 
-    python3 deploy/pi_main.py --link /dev/serial0:921600 --once --max-steps 500
+    ~/ai4fly-venv/bin/python deploy/pi_main.py --link /dev/serial0:921600 --once --max-steps 500
 
 should print the attitude it started from, run 500 steps, and leave a log
 in `deploy/logs/`. If it prints `warning: no flight controller` instead, the
@@ -186,10 +192,21 @@ across a flight-controller reboot. None of this has been run yet.
 
 ## Running at boot
 
-    sudo cp deploy/pi/estimator.service /etc/systemd/system/
+    sed "s#/home/pi#$HOME#g; s#^User=pi#User=$USER#" deploy/pi/estimator.service \
+        | sudo tee /etc/systemd/system/estimator.service
     sudo systemctl daemon-reload
     sudo systemctl enable --now estimator
     journalctl -u estimator -f
+
+The `sed` fills in your user and home directory: the unit is written for a
+user called `pi`, which Raspberry Pi OS no longer creates.
+
+A log runs to about 140 MB an hour, since every row carries the raw reading,
+the estimate and the three noise terms. Each time the service starts it
+compresses the logs earlier runs left in `deploy/logs/` to `.csv.gz`, about
+a third the size; `pandas.read_csv` reads them unchanged. Nothing is ever
+deleted automatically -- the first flights are the data this whole project
+is waiting for -- so copy logs off and clear the folder now and then.
 
 ## What to look at in the first logs
 
