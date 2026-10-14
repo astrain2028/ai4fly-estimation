@@ -19,6 +19,44 @@ matching reads their *magnitude* and can absorb a noisier one. Neither sees
 the other's fault, which is derivable before any experiment and is why the
 deployed arm, `layered`, carries both.
 
+## At a glance
+
+One unscented Kalman filter estimates the vehicle's state and a continuous
+health level for each sensor, with a learned measurement model whose noise
+is the sum of three terms: what the sensor's noise should be (aleatoric),
+what the model does not know (epistemic, from a last-layer Laplace
+posterior), and whatever neither explains (a Mehra residual). In simulation,
+on a ground robot and a quadcopter:
+
+- **Which mechanism catches which fault is predictable.** Faults that shift
+  a reading go to the health states, faults that widen it to the residual,
+  and the prediction held for `drift`, a fault never trained on.
+- **The filter stays honest about itself.** On the quadcopter `layered`
+  keeps NIS between 8.13 and 10.19 against a target of 9 under every fault
+  tested; on the robot it takes `scale_error` from 0.2594 to 0.0259 m/s
+  without retraining.
+- **It says when it is out of its depth.** The epistemic term's novelty
+  ratio catches a stuck and a mis-scaled sensor the model never saw on 8 of
+  8 robot runs each, with no false alarm.
+- **It says when nothing can be trusted.** With every sensor failed, the
+  estimate is declared invalid within 1.1–2.0 s, and never on 264 flights
+  where it should not be.
+- **It fits on a companion computer.** numpy only, about 2 ms a step against
+  a 20 ms budget on a laptop; a bank of filters costs 0.779 ms per fault
+  hypothesis.
+
+What it has not done: run on hardware or in ArduPilot SITL. The robot's
+sensor model is exactly linear, so a learned map cannot show its worth
+there; on the quadcopter it can (attitude error 0.912° with the hand-written
+model, 0.677° with `layered`), but its health levels do not yet read as
+fault severities.
+
+**Reading order.** *Formulation* for the idea; *Results* from Test 4 for
+the fault taxonomy and the quadcopter; *The epistemic term, and what it is
+for*; *When every sensor fails*; *What is still open* for the limits.
+`deploy/pi/README.md` is the path to hardware, and *Contents* maps every
+file.
+
 ## Formulation
 
 Estimation seeks `p(x | z)` for state `x` given measurements `z`. The
