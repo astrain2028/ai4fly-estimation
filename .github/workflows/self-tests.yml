@@ -1,0 +1,25 @@
+# The self-tests a fresh clone can run, on every push and pull request.
+#
+# They need no trained weights, generated data or torch -- see QUICK in
+# run_tests.py -- so the job installs only what they import and finishes in
+# about a minute. The rest of the suite needs models trained from source and
+# runs locally: python run_tests.py
+name: self-tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install what the quick tests import
+        run: pip install numpy pandas pymavlink
+      - name: Run the quick self-tests
+        run: python run_tests.py --quick

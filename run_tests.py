@@ -15,9 +15,15 @@ would have noticed.
     python run_tests.py            everything
     python run_tests.py robot      only files under robot/
     python run_tests.py bhr gp     only files whose path contains these
+    python run_tests.py --quick    the ones a fresh clone can run
 
 Slow ones are skipped by default because a check nobody runs is worse than no
 check at all. Pass --all to include them.
+
+--quick runs the tests that need nothing the repository does not carry: no
+trained weights, no generated datasets, no torch. That is what a fresh
+clone can check in under a minute, and what .github/workflows/self-tests.yml
+runs on every push.
 """
 
 import subprocess
@@ -61,6 +67,26 @@ TESTS = [
     "deploy/mavlink_sink.py",
     "deploy/integrity.py",
     "deploy/pi_main.py",
+]
+
+# Seconds each, and they need nothing the repository does not carry: no
+# trained weights (*.pt and *.npz are gitignored), no generated data, no
+# torch. deploy/runtime.py falls back to the analytic model without weights.
+# Checked in a fresh clone with torch made unimportable.
+QUICK = [
+    "robot/dynamics.py",
+    "robot/trajectories.py",
+    "robot/sensors.py",
+    "robot/faults.py",
+    "robot/ukf.py",
+    "quad_sim/dynamics.py",
+    "quad_sim/trajectories.py",
+    "quad_sim/sensors.py",
+    "quad_sim/faults.py",
+    "deploy/runtime.py",
+    "deploy/mavlink_source.py",
+    "deploy/mavlink_sink.py",
+    "deploy/integrity.py",
 ]
 
 # Minutes each, and they retrain models or sweep parameters. Worth running
@@ -127,7 +153,10 @@ def run(path):
 
 def main():
     words = [a for a in sys.argv[1:] if not a.startswith("--")]
-    tests = TESTS + (SLOW if "--all" in sys.argv else [])
+    if "--quick" in sys.argv:
+        tests = list(QUICK)
+    else:
+        tests = TESTS + (SLOW if "--all" in sys.argv else [])
     if words:
         tests = [t for t in tests if any(w in t for w in words)]
 
@@ -155,7 +184,9 @@ def main():
         return 1
 
     print("all %d passed" % len(tests))
-    if "--all" not in sys.argv:
+    if "--quick" in sys.argv:
+        print("(the quick set only -- run without --quick for the rest)")
+    elif "--all" not in sys.argv:
         print("(%d slow tests skipped -- pass --all to include them)"
               % len(SLOW))
     return 0
