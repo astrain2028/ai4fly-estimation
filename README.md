@@ -483,6 +483,24 @@ Gaussian has stopped being adequate, and splitting a mixture component when
 it has. Nothing here detects that condition, and the fault modes most likely
 to cause it are the ones this project intends to inject.
 
+That presumption is narrower than it sounds, because the filter is
+unscented. Its update uses each noise source only through its mean and
+covariance, and Julier and Uhlmann stress that it is not restricted to
+Gaussian noise [61]: any noise with the right first two moments is handled
+as Gaussian noise of the same covariance would be. Where the non-Gaussianity
+comes from the map rather than the noise — a Gaussian state read through the
+quadcopter's rotation is no longer Gaussian — the sigma points carry the
+result's mean to a higher order than linearisation does, at the same cost,
+and partly capture the higher-order terms [61, 62]. And carrying a Gaussian
+is then the least committal choice: given only a mean and a covariance, it is
+the distribution that assumes the least [61]. So the choice of filter
+addresses non-Gaussianity at the level of moments. Shape is what it cannot
+represent — a stuck channel, a "working or not" condition — and even the
+moments are approximate: on the quadcopter the filter claims a median of 8.2
+times less measurement scatter than its innovations show (*Results*), the
+systematic underestimate Jiang, Shi and Moura prove for nonlinear Kalman
+filters [27].
+
 DeMars et al. repair the Gaussian assumption from inside. Jah and Haslett [28]
 abandon it: the Epistemic Support-Point Filter maintains a region of
 plausibility rather than a posterior, updating it by compatibility with each
@@ -1535,6 +1553,15 @@ Automatic Control*, vol. 17, no. 5, pp. 693–698, 1972.
 [41] A. H. Mohamed and K. P. Schwarz, "Adaptive Kalman Filtering for
 INS/GPS," *Journal of Geodesy*, vol. 73, no. 4, pp. 193–203, 1999.
 [doi:10.1007/s001900050236](https://doi.org/10.1007/s001900050236)
+
+[61] S. J. Julier and J. K. Uhlmann, "A New Extension of the Kalman Filter to
+Nonlinear Systems," *Signal Processing, Sensor Fusion, and Target
+Recognition VI*, Proc. SPIE vol. 3068, 1997.
+[doi:10.1117/12.280797](https://doi.org/10.1117/12.280797)
+
+[62] S. J. Julier and J. K. Uhlmann, "Unscented Filtering and Nonlinear
+Estimation," *Proceedings of the IEEE*, vol. 92, no. 3, pp. 401–422, 2004.
+[doi:10.1109/JPROC.2003.823141](https://doi.org/10.1109/JPROC.2003.823141)
 
 **Fault detection and health estimation**
 
