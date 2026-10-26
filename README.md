@@ -154,8 +154,11 @@ which is likely to matter most where faults are transient or intermittent.
 
 Identifying noise covariances online is itself long established, beginning
 with Mehra [2], who derived consistency tests on the innovation sequence and
-estimators for the process and measurement noise covariances from it. Such
-methods are necessarily reactive: they infer covariance from realised
+estimators for the process and measurement noise covariances from it. He
+later sorted the field into Bayesian, maximum-likelihood, correlation and
+covariance-matching methods [40]; the residual term in `layered` is of the
+last kind, in the innovation-based form Mohamed and Schwarz [41] develop for
+INS/GPS. Such methods are necessarily reactive: they infer covariance from realised
 residuals, so several epochs of degraded behaviour must elapse before the
 estimate responds, and a degraded sensor is not distinguished from a
 misspecified model — both inflate residuals identically. Conditioning on
@@ -386,6 +389,75 @@ Reporting where a learned component's knowledge runs out is a narrow instance
 of a broader capability: Israelsen et al. [13] treat competency
 self-assessment as a first-class function of an autonomous system, rather
 than as diagnostics attached after the fact.
+
+### Is aleatoric plus epistemic everything?
+
+`layered` adds a third term to two that are often presented as exhaustive,
+and the objection has a precise answer. For a model
+`y | x ~ N(μ_w(x), σ²_w(x))` with a posterior over its weights, the law of
+total variance splits the predictive variance exactly:
+
+    Var[y | x, data]  =  E_w[ σ²_w(x) ]  +  Var_w[ μ_w(x) ]
+                          aleatoric          epistemic
+
+Nothing is left over, but it is the variance as the model sees it. It equals
+the real error variance only if the true process lies inside the model's
+family. If it does not, the posterior concentrates on the best-fitting
+member, the epistemic term shrinks toward zero as data grow, and what is left
+is a bias — the gap between that member and the truth — which more data does
+not remove.
+
+The taxonomies agree once the two senses of "epistemic" are kept apart.
+Hüllermeier and Waegeman [42] file misspecification under epistemic, as
+*model uncertainty*, next to the *approximation uncertainty* of fitting
+within a model class, so by definition two categories cover everything; but
+they note that a posterior over a fixed class captures only the second, and
+that the first is usually ignored. Gruber et al. [43] write the same thing as
+noise plus estimation variance plus squared bias, and DEUP [44] estimates the
+bias part directly, as observed error minus the aleatoric estimate, which is
+the logic of covariance matching. The lab's own split is exhaustive by
+construction for a related reason: Acharya, Russell and Ahmed [30] define the
+aleatoric part as whatever residual the ensemble spread leaves, so model
+error seen in training is labelled aleatoric rather than ruled out.
+
+Fields that calibrate physical models make the third term explicit. Kennedy
+and O'Hagan [45] add a model-inadequacy function beside parameter uncertainty
+and observation error, and Brynjarsdóttir and O'Hagan [46] show that leaving
+it out gives biased and overconfident parameter estimates and predictions.
+Roy and Oberkampf [47] keep two types of uncertainty but estimate model-form
+uncertainty separately, from validation residuals, and add it on top; in
+their tests it was often the largest contribution. Data assimilation splits
+observation error into instrument error and representation error, which
+includes error in the observation operator itself [48, 49], and Howes,
+Fowler and Lawless [50] estimate a combined model-and-observation error
+covariance from innovation statistics, the nearest precedent for `R_unm`.
+Closest to this project, Russell and Reale [51] sum learned aleatoric and
+epistemic covariances inside a Kalman filter, and find that training through
+the filter lets the learned covariance absorb the filter's own errors —
+time-correlated measurements, a poor dynamics model — so the third component
+was there, hidden in the aleatoric term.
+
+So `R_unm` is not a third kind of uncertainty. `R_epi` is the parametric part
+of epistemic uncertainty, which a posterior over the network can see; `R_unm`
+is the structural part, which it cannot, together with whatever the filter
+itself gets wrong. That predicts where it should be nonzero. A variance head
+trained by likelihood absorbs model error it saw in training, as [43] shows,
+so `R_unm` should be near zero at the training rates and grow under shift or
+filter error.
+
+Three cautions come from the same literature. The terms are not separately
+identifiable from innovations alone: zero-lag innovation statistics fix only
+the total `HPHᵀ + R`, and separating it needs lagged correlations or
+structural assumptions [2, 56]. Estimating a model-error term beside `R`
+works only when each is roughly right [57], and a discrepancy term is
+confounded with the others unless something constrains it [46, 54, 55];
+here only the order of subtraction and the floor at zero do. How estimators
+divide uncertainty
+between aleatoric and epistemic heads is often unreliable in practice, the
+two estimates leaking into each other [52, 53]. And no published filter
+stacks these three terms this way: each layer has precedent, the combination
+does not. What can be checked is the sum, by NIS and NEES, not the
+attribution among its parts.
 
 ### What this does not resolve
 
@@ -880,9 +952,9 @@ adds instead:
 
     R = R_aleatoric(x, m) + R_epistemic(x, m) + R_unmodelled
 
-with the third estimated as Mehra estimated it — what the innovations turned
-out to be, minus the scatter the filter already predicted, minus what the model
-claimed. Two things follow. The floor stops being a tuned constant and becomes
+with the third estimated by covariance matching [40, 41] — what the
+innovations turned out to be, minus the scatter the filter already predicted,
+minus what the model claimed. Two things follow. The floor stops being a tuned constant and becomes
 `max(0, ·)`, because a variance nobody has accounted for cannot be negative.
 And four constants become one.
 
@@ -1181,6 +1253,13 @@ the unit, with the cluster-robust sandwich covariance [31, 32], keeps
 Laplace's centre and widens its spread by 5–6× on the robot's encoders, 25×
 on its gyro, 14–17× on the quadcopter's accelerometer, 10–15× on its
 magnetometer and 110× on its gyro. That is the posterior `layered` now uses.
+It is the standard repair for a misspecified likelihood: there the ordinary
+posterior covariance is not the sampling covariance, and the sandwich is the
+better choice [58, 59], and treating correlated rows as independent makes the
+naive posterior far too narrow [60]. All three results describe uncertainty
+about the best-fitting weights, which shrinks with data while the model's
+distance from the truth does not; that gap is what the residual term is for
+(*Is aleatoric plus epistemic everything?*, above).
 
 | `layered` with the term, against without | robot | quadcopter |
 |---|---|---|
@@ -1449,6 +1528,14 @@ Filtering," *IEEE Transactions on Automatic Control*, vol. 15, no. 2,
 pp. 175–184, 1970.
 [doi:10.1109/TAC.1970.1099422](https://doi.org/10.1109/TAC.1970.1099422)
 
+[40] R. K. Mehra, "Approaches to Adaptive Filtering," *IEEE Transactions on
+Automatic Control*, vol. 17, no. 5, pp. 693–698, 1972.
+[doi:10.1109/TAC.1972.1100100](https://doi.org/10.1109/TAC.1972.1100100)
+
+[41] A. H. Mohamed and K. P. Schwarz, "Adaptive Kalman Filtering for
+INS/GPS," *Journal of Geodesy*, vol. 73, no. 4, pp. 193–203, 1999.
+[doi:10.1007/s001900050236](https://doi.org/10.1007/s001900050236)
+
 **Fault detection and health estimation**
 
 [18] A. S. Willsky, "A Survey of Design Methods for Failure Detection in
@@ -1624,6 +1711,104 @@ and Epistemic Uncertainties over Long Horizon Trajectories," 2023.
 [32] K.-Y. Liang and S. L. Zeger, "Longitudinal Data Analysis Using
 Generalized Linear Models," *Biometrika*, vol. 73, no. 1, pp. 13–22, 1986.
 [doi:10.1093/biomet/73.1.13](https://doi.org/10.1093/biomet/73.1.13)
+
+**Model error beyond aleatoric and epistemic**
+
+[42] E. Hüllermeier and W. Waegeman, "Aleatoric and Epistemic Uncertainty in
+Machine Learning: An Introduction to Concepts and Methods," *Machine
+Learning*, vol. 110, no. 3, pp. 457–506, 2021.
+[doi:10.1007/s10994-021-05946-3](https://doi.org/10.1007/s10994-021-05946-3)
+
+[43] C. Gruber, P. O. Schenk, M. Schierholz, F. Kreuter, and G. Kauermann,
+"Sources of Uncertainty in Supervised Machine Learning – A Statisticians'
+View," 2025. [arXiv:2305.16703](https://arxiv.org/abs/2305.16703)
+
+[44] S. Lahlou, M. Jain, H. Nekoei, V. I. Butoi, P. Bertin, J. Rector-Brooks,
+M. Korablyov, and Y. Bengio, "DEUP: Direct Epistemic Uncertainty
+Prediction," *Transactions on Machine Learning Research*, 2023.
+[arXiv:2102.08501](https://arxiv.org/abs/2102.08501)
+
+[45] M. C. Kennedy and A. O'Hagan, "Bayesian Calibration of Computer
+Models," *Journal of the Royal Statistical Society Series B*, vol. 63, no. 3,
+pp. 425–464, 2001.
+[doi:10.1111/1467-9868.00294](https://doi.org/10.1111/1467-9868.00294)
+
+[46] J. Brynjarsdóttir and A. O'Hagan, "Learning about Physical Parameters:
+The Importance of Model Discrepancy," *Inverse Problems*, vol. 30, no. 11,
+114007, 2014.
+[doi:10.1088/0266-5611/30/11/114007](https://doi.org/10.1088/0266-5611/30/11/114007)
+
+[47] C. J. Roy and W. L. Oberkampf, "A Comprehensive Framework for
+Verification, Validation, and Uncertainty Quantification in Scientific
+Computing," *Computer Methods in Applied Mechanics and Engineering*,
+vol. 200, no. 25–28, pp. 2131–2144, 2011.
+[doi:10.1016/j.cma.2011.03.016](https://doi.org/10.1016/j.cma.2011.03.016)
+
+[48] T. Janjić, N. Bormann, M. Bocquet, J. A. Carton, S. E. Cohn, S. L. Dance,
+S. N. Losa, N. K. Nichols, R. Potthast, J. A. Waller, and P. Weston, "On the
+Representation Error in Data Assimilation," *Quarterly Journal of the Royal
+Meteorological Society*, vol. 144, no. 713, pp. 1257–1278, 2018.
+[doi:10.1002/qj.3130](https://doi.org/10.1002/qj.3130)
+
+[49] D. Hodyss and N. Nichols, "The Error of Representation: Basic
+Understanding," *Tellus A*, vol. 67, 24822, 2015.
+[doi:10.3402/tellusa.v67.24822](https://doi.org/10.3402/tellusa.v67.24822)
+
+[50] K. E. Howes, A. M. Fowler, and A. S. Lawless, "Accounting for Model
+Error in Strong-Constraint 4D-Var Data Assimilation," *Quarterly Journal of
+the Royal Meteorological Society*, vol. 143, no. 704, pp. 1227–1240, 2017.
+[doi:10.1002/qj.2996](https://doi.org/10.1002/qj.2996)
+
+[51] R. L. Russell and C. P. Reale, "Multivariate Uncertainty in Deep
+Learning," *IEEE Transactions on Neural Networks and Learning Systems*,
+vol. 33, no. 12, pp. 7937–7943, 2022.
+[arXiv:1910.14215](https://arxiv.org/abs/1910.14215)
+
+[52] B. Mucsányi, M. Kirchhof, and S. J. Oh, "Benchmarking Uncertainty
+Disentanglement: Specialized Uncertainties for Specialized Tasks,"
+*Advances in Neural Information Processing Systems 37* (Datasets and
+Benchmarks Track), 2024. [arXiv:2402.19460](https://arxiv.org/abs/2402.19460)
+
+[53] M. Valdenegro-Toro and D. Saromo Mori, "A Deeper Look into Aleatoric and
+Epistemic Uncertainty Disentanglement," *IEEE/CVF Conference on Computer
+Vision and Pattern Recognition Workshops*, 2022.
+[arXiv:2204.09308](https://arxiv.org/abs/2204.09308)
+
+[54] P. D. Arendt, D. W. Apley, and W. Chen, "Quantification of Model
+Uncertainty: Calibration, Model Discrepancy, and Identifiability," *Journal
+of Mechanical Design*, vol. 134, no. 10, 100908, 2012.
+[doi:10.1115/1.4007390](https://doi.org/10.1115/1.4007390)
+
+[55] M. Plumlee, "Bayesian Calibration of Inexact Computer Models," *Journal
+of the American Statistical Association*, vol. 112, no. 519, pp. 1274–1285,
+2017. [doi:10.1080/01621459.2016.1211016](https://doi.org/10.1080/01621459.2016.1211016)
+
+[56] P. Tandeo, P. Ailliot, M. Bocquet, A. Carrassi, T. Miyoshi, M. Pulido,
+and Y. Zhen, "A Review of Innovation-Based Methods to Jointly Estimate Model
+and Observation Error Covariance Matrices in Ensemble Data Assimilation,"
+*Monthly Weather Review*, vol. 148, no. 10, pp. 3973–3994, 2020.
+[doi:10.1175/MWR-D-19-0240.1](https://doi.org/10.1175/MWR-D-19-0240.1)
+
+[57] H. Li, E. Kalnay, and T. Miyoshi, "Simultaneous Estimation of
+Covariance Inflation and Observation Errors within an Ensemble Kalman
+Filter," *Quarterly Journal of the Royal Meteorological Society*, vol. 135,
+no. 639, pp. 523–533, 2009.
+[doi:10.1002/qj.371](https://doi.org/10.1002/qj.371)
+
+[58] B. J. K. Kleijn and A. W. van der Vaart, "The Bernstein-Von-Mises
+Theorem under Misspecification," *Electronic Journal of Statistics*, vol. 6,
+pp. 354–381, 2012.
+[doi:10.1214/12-EJS675](https://doi.org/10.1214/12-EJS675)
+
+[59] U. K. Müller, "Risk of Bayesian Inference in Misspecified Models, and
+the Sandwich Covariance Matrix," *Econometrica*, vol. 81, no. 5,
+pp. 1805–1849, 2013.
+[doi:10.3982/ECTA9097](https://doi.org/10.3982/ECTA9097)
+
+[60] M. Ribatet, D. Cooley, and A. C. Davison, "Bayesian Inference from
+Composite Likelihoods, with an Application to Spatial Extremes," *Statistica
+Sinica*, vol. 22, no. 2, pp. 813–845, 2012.
+[doi:10.5705/ss.2009.248](https://doi.org/10.5705/ss.2009.248)
 
 ## Status
 
