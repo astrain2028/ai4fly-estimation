@@ -282,6 +282,14 @@ is concave for a linear output layer, and pair this with a Laplace
 approximation that keeps the weight posterior closed-form rather than
 sampled.
 
+Both keep the noise Gaussian: the network sets its centre and its width,
+never its shape. Acharya et al. [39], from the same lab, drop that
+assumption, comparing parametric, discretized and generative networks for
+noise densities that are not Gaussian, on simulated densities and on real
+terrain-relative navigation data. It is kept here because the unscented
+update consumes only a mean and a covariance, so a richer density would be
+reduced to those two moments before the filter saw it.
+
 ### Distinguishing sensor degradation from model ignorance
 
 That posterior separates predictive uncertainty into aleatoric and epistemic
@@ -1350,7 +1358,11 @@ stretch, false alarms fall to 2.5 per run, the healthy-run cost disappears
 error and does not need solving.
 
 Nothing here detects when the posterior stops being approximately Gaussian,
-and degraded sensors are exactly where that is least safe.
+and degraded sensors are exactly where that is least safe. The measurement
+noise is Gaussian by construction too. Acharya et al. [39] show that a
+network can learn a noise density that is not, but using one needs a filter
+that carries more than two moments — a particle or Gaussian-mixture filter
+rather than the UKF.
 
 A fault arriving mid-run still costs `combined` about half again (48%) over
 the same fault present from the start, and `health` 58%, after retraining on
@@ -1546,6 +1558,11 @@ Behavior of Learned Residual Gyro Correction for Gyro-Stellar Estimation,"
 Uncertainty-aware Noisy-Or Multimodal Fusion for Unanticipated Input
 Degradation," *IEEE International Conference on Robotics and Automation*,
 2020. [arXiv:1911.05611](https://arxiv.org/abs/1911.05611)
+
+[39] A. Acharya, C. Lee, M. D'Alonzo, J. Shamwell, N. R. Ahmed, and
+R. Russell, "Deep Modeling of Non-Gaussian Aleatoric Uncertainty," *IEEE
+Robotics and Automation Letters*, vol. 10, no. 1, pp. 660–667, 2025.
+[doi:10.1109/LRA.2024.3511376](https://doi.org/10.1109/LRA.2024.3511376)
 
 **Filter consistency and self-assessment**
 
