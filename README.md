@@ -448,16 +448,17 @@ filter error.
 Three cautions come from the same literature. The terms are not separately
 identifiable from innovations alone: zero-lag innovation statistics fix only
 the total `HPHᵀ + R`, and separating it needs lagged correlations or
-structural assumptions [2, 56]. Estimating a model-error term beside `R`
-works only when each is roughly right [57], and a discrepancy term is
-confounded with the others unless something constrains it [46, 54, 55];
-here only the order of subtraction and the floor at zero do. How estimators
-divide uncertainty
-between aleatoric and epistemic heads is often unreliable in practice, the
-two estimates leaking into each other [52, 53]. And no published filter
-stacks these three terms this way: each layer has precedent, the combination
-does not. What can be checked is the sum, by NIS and NEES, not the
-attribution among its parts.
+structural assumptions [2, 56]. Estimating either the process-side term or `R`
+from those statistics works only when the other is right; estimating both
+together, with a second statistic from the analysis residuals, recovers them
+under random model error or a small systematic bias but not a large one [57].
+And a discrepancy term is confounded with the others unless something
+constrains it [46, 54, 55]; here only the order of subtraction and the floor
+at zero do. How estimators divide uncertainty between aleatoric and epistemic
+heads is often unreliable in practice, the two estimates leaking into each
+other [52, 53]. And no published filter stacks these three terms this way:
+each layer has precedent, the combination does not. What can be checked is the
+sum, by NIS and NEES, not the attribution among its parts.
 
 ### What this does not resolve
 
