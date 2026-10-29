@@ -1116,11 +1116,6 @@ arm on it, worse than doing nothing. On calibration it does:
 | health-conditioned | **10.69** | 32.06 |
 | layered | 8.13 | 9.99 |
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="figures/img/quad-dark.png">
-  <img alt="Quadcopter attitude error and NIS for four arms under accelerometer and magnetometer faults, showing the NIS crossing between adaptive R and health-conditioned holding while the accuracy ordering does not." src="figures/img/quad-light.png">
-</picture>
-
 Health beats adaptive on bias; adaptive beats health on noise, where health's
 32 is exactly the overconfidence `∂h/∂m = 0` predicts — it never widens `R`
 for a fault it cannot see. Layered holds within 14% of target on every
@@ -1173,11 +1168,6 @@ scatter to the empirical one on healthy runs of both vehicles, per channel:
 | quadcopter, median over 9 channels | **8.2×** |
 | quadcopter, `accel_z` | **87×** |
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="figures/img/scatter-dark.png">
-  <img alt="Dot plot on a log scale of empirical over claimed measurement scatter per channel: ground-robot channels sit near half, quadcopter channels sit far above one, with accel_z at about 87 times." src="figures/img/scatter-light.png">
-</picture>
-
 The quadcopter's filter claims an order of magnitude less scatter than its
 innovations show, and the claim is furthest off on the accelerometer
 channels — the ones roll and pitch are observed through. Mehra's subtraction
@@ -1227,11 +1217,6 @@ With faults, ten seconds after a severity-3 bias arrives mid-flight, the
 matching bias entry reads 0.62 (gyro) to 0.97 (magnetometer, after peaking at
 1.03), nowhere near 3. Noise entries stay near zero under noise faults, as `∂h/∂m = 0` says
 they must; the residual carries those.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="figures/img/health_readout-dark.png">
-  <img alt="Two panels. Top: for the same eight healthy quadcopter flights, ordered by starting heading, the highest health entry when the filter starts from the true first state, all below 2 with the highest at 1.51, paired with the same flight started from zeros at heading 0, where the three flights starting near 180 degrees reach 3.11 to 4.83. Bottom: for the accelerometer, gyroscope and magnetometer, the matching bias and noise entries ten seconds after a mid-flight fault of severity 2 and 3, against a diagonal marking a settled readout; bias entries read 0.44 to 0.97 and noise entries 0.01 to 0.16." src="figures/img/health_readout-light.png">
-</picture>
 
 Ten seconds does not separate a wrong answer from a slow one. The robot's
 trace above shows a mid-run bias entry still climbing at 32 seconds, and the
@@ -1334,11 +1319,6 @@ fault outside the taxonomy, `dropout`. On the quadcopter it is an envelope
 monitor: it sees the vehicle flying somewhere the model was not trained, and
 little else.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="figures/img/epistemic-dark.png">
-  <img alt="The epistemic term's novelty ratio by condition on both vehicles, with the healthy range marked, and what the calibrated in-flight alert catches on held-out flights." src="figures/img/epistemic-light.png">
-</picture>
-
 **It found a defect on the way.** The first calibration of the quadcopter's
 level failed: healthy flights reached a one-second novelty of 28 on the
 accelerometer and 35 on the magnetometer, which set the levels so high that
@@ -1431,11 +1411,6 @@ readings beats the learned machinery, and `experiments/frozen.py` answers it:
 | analytic + three-line detector | **0.0077** | **−97%** |
 | layered | 0.1810 | −18% |
 | layered + detector | 0.0086 | −96% |
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="figures/img/frozen-dark.png">
-  <img alt="Speed error with and without a variance-based frozen-sensor detector for the analytic and layered arms, on a log scale, with false alarms per run at detector windows of 5 and 25 steps." src="figures/img/frozen-light.png">
-</picture>
 
 The detector recovers 97% of the gap on its own, and `layered` adds nothing
 on top of it. That fault wants three lines of numpy and not a learned model,
