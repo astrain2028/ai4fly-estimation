@@ -184,8 +184,15 @@ generalise that past a constant additive offset.
 
 What none of that work shares is how the fault enters the measurement. In the
 classical formulation it enters analytically, and usually linearly, as
-`z = h(x) + f`. Here it enters through a learned function. That is the part
-which has to be argued for rather than cited.
+`z = h(x) + f`. Here it enters through a learned function. One recent paper
+does that much: Thai, Do and Iung [63] carry a sensor's degradation level as
+a particle-filter state and feed it, with the monitored system's own
+degradation, into a network that predicts the reading, learned online without
+ground truth. Their case is one simulated scalar sensor with no learned noise
+model, held in place by strong physical priors, and some starting points still
+end in local minima. A learned map that conditions both the expected reading
+and its noise on health the filter itself estimates, inside a UKF, is the
+part which has to be argued for rather than cited.
 
 The difference carries a cost, and it is one a learned fault model has to be
 tested for rather than assumed past. A learned health model has seen
@@ -210,7 +217,14 @@ UKF. All three show a learned map absorbing structure a hand-specified model
 omits. Liu et al. [14] make the covariance itself the learned object rather
 than the map, regressing a measurement's noise directly from raw sensor data
 with no hand-specified parametric form — the narrower ancestor of what is
-attempted here.
+attempted here. It was not the first: Peretroukhin et al. [64], two of the
+same authors, had already predicted a measurement's noise from cues in the
+environment, with an inverse-Wishart posterior over the covariance itself, so
+the predicted spread widens where training data are sparse. TLIO [65] is the
+pattern at its plainest in inertial navigation: a network trained by Gaussian
+likelihood against true displacements hands an EKF both a measurement and its
+covariance, and its ablation credits the learned covariance, not the learned
+measurement, with the gain.
 
 The Gaussian process case is worth separating out, because it supplies one
 half of what is needed here and not the other. Its predictive variance grows
@@ -227,7 +241,12 @@ innovation; model-learning methods, which parameterise components of the
 state-space model with a network; and gain-learning methods, which replace
 the analytic Kalman gain outright. The work here is model-learning applied to
 the measurement side — the map and its covariance are learned, while the
-prediction and update recursions remain analytic.
+prediction and update recursions remain analytic. That is the less travelled
+side. The main line of hybrid physics-and-network filtering, surveyed by
+Shlezinger et al. [66], takes the measurement model as known from first
+principles and learns the dynamics or the gain; Imbiriba et al. [67], for
+instance, add a small network to a constant-velocity model and learn it online
+inside a cubature filter, held near the physics by a pseudo-measurement.
 
 Their own method sits on the opposite side of the same filter, learning
 structured corrections to the dynamics and the process noise, and it differs
@@ -250,8 +269,8 @@ a measurement map and a covariance, conditioned on a health variable with a
 physical meaning, rather than an unconstrained network mapping states to
 corrections.
 
-The nearest published neighbour is Unscented KalmanNet, Ko and Shafieezadeh
-[15], which leaves the sigma-point recursions intact and learns time-varying
+There are two nearest published neighbours. One is Unscented KalmanNet, Ko and
+Shafieezadeh [15], which leaves the sigma-point recursions intact and learns time-varying
 `Q` and `R` alongside them, trained against an objective rewarding calibration
 as well as accuracy and evaluated on both NIS and NEES. Two differences bear
 on the choices made here. Its covariances are produced as bounded triangular
@@ -261,6 +280,16 @@ to deform, and never meets the gradient pathology that motivates the natural
 parameterisation below. And it addresses noise misspecification rather than
 sensor degradation: no health variable, no epistemic term, no fault to detect.
 The overlap covers the healthy-condition case; the divergence is what remains.
+
+The other, on the noise side, is Kloss, Martius and Bohg [68]. They train
+heteroscedastic observation noise inside differentiable EKF, UKF and particle
+filters, compare training choices systematically, and find negative
+log-likelihood beats squared error. The finding that matters most here is a
+warning. Noise models fitted to ground truth on their own, as this project's
+are, left every filter overconfident, and fine-tuning only the noise models
+through the filter gave the best likelihood. That fine-tuning was of constant
+noise models; a heteroscedastic one did worst on their real data, which they
+put down to overfitting. Neither paper carries health or an epistemic term.
 
 ### Why the map must predict a covariance, not only a mean
 
@@ -443,7 +472,14 @@ is the structural part, which it cannot, together with whatever the filter
 itself gets wrong. That predicts where it should be nonzero. A variance head
 trained by likelihood absorbs model error it saw in training, as [43] shows,
 so `R_unm` should be near zero at the training rates and grow under shift or
-filter error.
+filter error. The learned-filter literature expects more than that once the
+data are real. Covariances trained by likelihood have turned out overconfident
+inside filters even on data like their training data: Kloss et al.'s left
+every filter overconfident until tuned through it [68]; TLIO's authors
+multiply theirs by ten and gate the update [65]; and Gupta and Gao's
+under-covered a 1% integrity tail about fivefold until spread across candidate
+states and robust weighting were added on top [69]. On real flights `R_unm`
+should be expected above zero even at the training rates.
 
 Three cautions come from the same literature. The terms are not separately
 identifiable from innovations alone: zero-lag innovation statistics fix only
@@ -534,6 +570,14 @@ The direction of failure is informative — innovations larger than predicted
 indicate an unmodelled noise source, while innovations smaller than predicted
 indicate a measurement that has stopped varying — and the two imply opposite
 corrective actions.
+
+Accuracy comparisons need a fair baseline. Greenberg, Yannay and Mannor [70]
+show that optimising a Kalman filter's constant `Q` and `R` through the filter
+can erase the apparent gain of a neural one, and that many published
+comparisons set the classical filter's noise by hand. Here the analytic arm is
+given the best constant `R` available to it, but `Q` is set by hand and is not
+optimised through the filter, so the learned arms' margins are against that
+baseline and not an optimised one.
 
 Validation proceeds from controlled simulation, where all quantities are
 observable and negative results are attributable, toward flight data and
@@ -1004,10 +1048,18 @@ Sage-Husa estimator and learn its forgetting factor, scheduling a convex
 combination of prior and empirical covariance; that is close in spirit to
 `models/doubt`, which learns how fast the adaptive layer may move, and it
 predates it. Levy and Klein [25] and Diker and Klein [26] learn the process
-noise `Q` alongside innovation-based adaptation. None of these conditions the
-covariance on sensor health, none combines a learned `R` with a
+noise `Q` alongside innovation-based adaptation. None of these four conditions
+the covariance on sensor health, none combines a learned `R` with a
 covariance-matching residual additively, and only [15] reports consistency
-rather than RMSE alone.
+rather than RMSE alone. Across the wider field the first two hold only
+narrowly. Conditioning `R` on observed cues of degradation, such as image
+statistics, is common [64, 69]; conditioning it on a health level the filter
+itself estimates is not. Inflating a learned `R` is routine too, as a fixed
+factor or a gate, as in TLIO's tenfold multiplier and χ² gate [65]; what is
+new here is the additive, floor-at-zero residual estimated online. And
+consistency is checked elsewhere: TLIO tests its network's covariance against
+its errors [65], and Kok and Schön accept a calibration only if the normalised
+innovations look Gaussian [71].
 
 **Cost per filter step**, measured with warmup, repeats and a median, because
 the same arm has been recorded at 23, 29, 96 and 567 ms on one machine in one
@@ -1497,13 +1549,31 @@ is not sufficient to show a filter is tuned, since the statistic is
 observations are under a model's predictions, which is the natural gate for
 whether a flight should be learned from at all.
 
-Together they suggest a shape, not yet tried here: refit on innovations rather
-than on estimated states, keep the posterior rather than collapsing it, and
-accept a refit only if its NIS on held-out flights matches the χ²
-distribution and not merely its mean. Health is what none of them supplies.
-Innovations do not say which sensor degraded or by how much, so a refit from
-flight data can teach the healthy map and must leave the degraded ones to
-simulation or to faults injected on purpose.
+Outside the lab the trap has been met head on. Kok and Schön [71] fit a
+magnetometer's measurement model, offset and distortion included, by maximum
+likelihood on an orientation filter's own innovations with no reference
+heading, and accept it only if the normalised innovations on validation data
+look standard normal; only the lumped distortion was identifiable, not its
+separate sources. Wong et al. [72] learn noise models without ground truth by
+expectation-maximisation and find the covariances collapse toward zero unless
+their scale is fixed, which then leaves the estimator underconfident, so a
+refit cannot be trusted to set the absolute size of `R`. Hager et al. [73]
+learn a network beside a physics magnetometer model online, its weights
+carried as filter states, from a cold start on real flights, and name telling
+that adaptation apart from a real sensor fault as unsolved. Thai et al. [63]
+fit a learned map with a degradation input without ground truth, but for one
+simulated scalar sensor, under strong priors, with some runs stuck in local
+minima.
+
+Together they suggest a shape, not yet tried here, though Kok and Schön [71]
+have tried its core on a magnetometer: refit on innovations rather than on
+estimated states, keep the posterior rather than collapsing it, and accept a
+refit only if its NIS on held-out flights matches the χ² distribution and not
+merely its mean. Health is what none of them supplies. Innovations do not say
+which sensor degraded or by how much, so a refit from flight data can teach
+the healthy map and, without structural priors as strong as Thai et al.'s,
+should leave the degraded ones to simulation or to faults injected on
+purpose.
 
 And none of it has touched hardware, real logs, or SITL. The companion
 computer process in `deploy/` has run against a simulated vehicle over a
@@ -1581,6 +1651,11 @@ Decentralized Data Fusion Using Reliability Variables and Mixture Models,"
 *27th International Conference on Information Fusion*, pp. 1–8, 2024.
 [doi:10.23919/FUSION59988.2024.10706522](https://doi.org/10.23919/FUSION59988.2024.10706522)
 
+[63] T.-T. N. Thai, P. Do, and B. Iung, "Physics-Informed Machine
+Learning-Assisted State Estimation for Degrading System Considering Sensor
+Degradation Impacts," *PHM Society European Conference*, vol. 9, no. 1, 2026.
+[doi:10.36001/phme.2026.v9i1.5046](https://doi.org/10.36001/phme.2026.v9i1.5046)
+
 **Learned measurement models in filtering**
 
 [3] J. Ko and D. Fox, "GP-BayesFilters: Bayesian Filtering Using Gaussian
@@ -1618,6 +1693,53 @@ Filters for Robust UAV State Estimation," 2026.
 
 [26] B. Diker and I. Klein, "Neural Aided Adaptive Innovation-Based Invariant
 Kalman Filter," 2026. [arXiv:2603.26709](https://arxiv.org/abs/2603.26709)
+
+[64] V. Peretroukhin, W. Vega-Brown, N. Roy, and J. Kelly, "PROBE-GK:
+Predictive Robust Estimation using Generalized Kernels," *IEEE International
+Conference on Robotics and Automation*, pp. 817–824, 2016.
+[doi:10.1109/ICRA.2016.7487212](https://doi.org/10.1109/ICRA.2016.7487212)
+
+[65] W. Liu, D. Caruso, E. Ilg, J. Dong, A. I. Mourikis, K. Daniilidis,
+V. Kumar, and J. Engel, "TLIO: Tight Learned Inertial Odometry," *IEEE
+Robotics and Automation Letters*, vol. 5, no. 4, pp. 5653–5660, 2020.
+[doi:10.1109/LRA.2020.3007421](https://doi.org/10.1109/LRA.2020.3007421)
+
+[66] N. Shlezinger, G. Revach, A. Ghosh, S. Chatterjee, S. Tang, T. Imbiriba,
+J. Duník, O. Straka, P. Closas, and Y. C. Eldar, "Artificial
+Intelligence-Aided Kalman Filters: AI-Augmented Designs for Kalman-Type
+Algorithms," *IEEE Signal Processing Magazine*, vol. 42, no. 3, pp. 52–76,
+2025. [doi:10.1109/MSP.2025.3569395](https://doi.org/10.1109/MSP.2025.3569395)
+
+[67] T. Imbiriba, A. Demirkaya, J. Duník, O. Straka, D. Erdoğmuş, and
+P. Closas, "Hybrid Neural Network Augmented Physics-based Models for Nonlinear
+Filtering," *25th International Conference on Information Fusion*, 2022.
+[doi:10.23919/FUSION49751.2022.9841291](https://doi.org/10.23919/FUSION49751.2022.9841291)
+
+[68] A. Kloss, G. Martius, and J. Bohg, "How to Train Your Differentiable
+Filter," *Autonomous Robots*, vol. 45, pp. 561–578, 2021.
+[doi:10.1007/s10514-021-09990-9](https://doi.org/10.1007/s10514-021-09990-9)
+
+[69] S. Gupta and G. Gao, "Data-Driven Protection Levels for Camera and 3D
+Map-Based Safe Urban Localization," *NAVIGATION*, vol. 68, no. 3,
+pp. 643–660, 2021. [doi:10.1002/navi.445](https://doi.org/10.1002/navi.445)
+
+[70] I. Greenberg, N. Yannay, and S. Mannor, "Optimization or Architecture:
+How to Hack Kalman Filtering," *Advances in Neural Information Processing
+Systems 36*, 2023. [arXiv:2310.00675](https://arxiv.org/abs/2310.00675)
+
+[71] M. Kok and T. B. Schön, "Magnetometer Calibration Using Inertial
+Sensors," *IEEE Sensors Journal*, vol. 16, no. 14, pp. 5679–5689, 2016.
+[doi:10.1109/JSEN.2016.2569160](https://doi.org/10.1109/JSEN.2016.2569160)
+
+[72] J. N. Wong, D. J. Yoon, A. P. Schoellig, and T. D. Barfoot, "Variational
+Inference With Parameter Learning Applied to Vehicle Trajectory Estimation,"
+*IEEE Robotics and Automation Letters*, vol. 5, no. 4, pp. 5291–5298, 2020.
+[doi:10.1109/LRA.2020.3007381](https://doi.org/10.1109/LRA.2020.3007381)
+
+[73] A. Hager, S. Nebendahl, A. Klushyn, J. Krauser, T. H. Bryne, and
+T. A. Johansen, "Airborne Magnetic Anomaly Navigation with
+Neural-Network-Augmented Online Calibration," 2026.
+[arXiv:2603.08265](https://arxiv.org/abs/2603.08265)
 
 **Heteroscedastic regression and predictive uncertainty**
 
